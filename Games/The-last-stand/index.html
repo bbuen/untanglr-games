@@ -49,15 +49,22 @@
     #attackBtn{pointer-events:auto;min-width:190px;padding:15px 28px;border:1px solid rgba(130,224,255,.75);border-radius:12px;color:#effbff;background:linear-gradient(#1d5b7f,#0a2337);box-shadow:0 0 22px rgba(65,190,255,.3),inset 0 1px rgba(255,255,255,.2);font:900 17px system-ui;letter-spacing:.16em;cursor:pointer}
     #attackBtn:hover:not(:disabled){filter:brightness(1.18);transform:translateY(-2px)}
     #attackBtn:disabled{opacity:.55;cursor:default}
-    #healBtn{pointer-events:auto;min-width:190px;padding:13px 28px;margin-top:7px;border:1px solid rgba(126,255,196,.78);border-radius:12px;color:#effff7;background:linear-gradient(#24785d,#0b352b);box-shadow:0 0 22px rgba(72,255,186,.25),inset 0 1px rgba(255,255,255,.2);font:900 15px system-ui;letter-spacing:.16em;cursor:pointer}
+    #healBtn{display:none;pointer-events:auto;min-width:190px;padding:13px 28px;margin-top:7px;border:1px solid rgba(126,255,196,.78);border-radius:12px;color:#effff7;background:linear-gradient(#24785d,#0b352b);box-shadow:0 0 22px rgba(72,255,186,.25),inset 0 1px rgba(255,255,255,.2);font:900 15px system-ui;letter-spacing:.16em;cursor:pointer}
     #healBtn:hover:not(:disabled){filter:brightness(1.18);transform:translateY(-2px)}
     #healBtn:disabled{opacity:.55;cursor:default}
     #classSplash{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:radial-gradient(circle at 50% 34%,rgba(30,52,79,.96),rgba(4,8,16,.985) 70%);color:#eefaff;padding:24px}
     #classCard{width:min(520px,100%);padding:34px;border:1px solid rgba(116,218,255,.55);border-radius:18px;background:rgba(7,17,29,.94);box-shadow:0 24px 80px #000,0 0 42px rgba(65,190,255,.16);text-align:center}
     #classCard h1{margin:0 0 8px;font-size:34px;letter-spacing:.08em} #classCard h2{margin:24px 0 8px;color:#9be8ff;font-size:26px}
     #classCard p{margin:8px auto;max-width:420px;line-height:1.55;color:#cbdde7} #classCard .stats{margin:20px 0;padding:14px;border-radius:12px;background:rgba(71,154,194,.12);color:#dff7ff;font-weight:750;line-height:1.7}
-    #selectWarrior{padding:15px 28px;border:1px solid #78ddff;border-radius:11px;color:#fff;background:linear-gradient(#24759d,#0b3049);font:900 15px system-ui;letter-spacing:.12em;cursor:pointer}
-    #energyDisplay{margin:8px 0 2px;color:#ffe79a;font:900 14px system-ui;letter-spacing:.08em;text-shadow:0 2px 8px #000} #resetEnergyBtn{margin-top:7px;padding:7px 12px;border:1px solid rgba(255,231,154,.55);border-radius:8px;background:rgba(44,34,16,.82);color:#ffe79a;font:800 11px system-ui;letter-spacing:.08em;cursor:pointer}
+    .classChoices{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}
+    #selectWarrior,#selectDefender,#selectHealer{padding:15px 18px;border-radius:11px;color:#fff;font:900 14px system-ui;letter-spacing:.10em;cursor:pointer}
+    #selectWarrior{border:1px solid #78ddff;background:linear-gradient(#24759d,#0b3049)}
+    #selectDefender{border:1px solid #9db8ff;background:linear-gradient(#394f94,#172651)}
+    #selectHealer{border:1px solid #8fffc6;background:linear-gradient(#28785a,#103d31)}
+    #selectWarrior:hover,#selectDefender:hover,#selectHealer:hover{filter:brightness(1.18);transform:translateY(-2px)}
+    .classInfo{display:none;margin-top:14px;padding:12px;border-radius:12px;background:rgba(71,154,194,.10);color:#dff7ff;font-weight:700;line-height:1.55}
+    .classInfo.show{display:block}
+    #energyDisplay{margin:8px 0 2px;color:#ffe79a;font:900 14px system-ui;letter-spacing:.08em;text-shadow:0 2px 8px #000} #energyCountdown{margin-top:4px;color:#c7d8e6;font:700 11px system-ui;letter-spacing:.08em;text-shadow:0 2px 8px #000}
   </style>
 </head>
 <body>
@@ -65,12 +72,17 @@
   <div id="classSplash"><div id="classCard">
     <h1>THE LAST STAND</h1>
     <p>The bots can delay defeat, but they cannot win the war.</p>
-    <h2>⚔ WARRIOR</h2>
-    <p>Strike the Bombardier Fleet directly. Each attack spends one Energy and reduces enemy Fleet strength.</p>
-    <div class="stats">5 Maximum Energy<br>+1 Energy every 4 hours<br>Only ATTACK is unlocked</div>
-    <button id="selectWarrior">SELECT WARRIOR</button>
+    <h2>CHOOSE YOUR CLASS</h2>
+    <p>Each class spends Energy to help the same global war.</p>
+    <div class="classChoices">
+      <button id="selectWarrior">⚔ WARRIOR</button>
+      <button id="selectDefender">🛡 DEFENDER</button>
+      <button id="selectHealer">✚ HEALER</button>
+    </div>
+    <div class="classInfo show" id="classSummary">⚔ Warrior damages the Bombardier Fleet.<br>🛡 Defender restores or overcharges Defense to 120%.<br>✚ Healer restores or overcharges Integrity to 120%.</div>
+    <div class="stats">5 Maximum Energy<br>+1 Energy every 4 hours<br>One class per session</div>
   </div></div>
-  <div id="attackPanel"><div id="attackLabel">CHOOSE A CLASS</div><div id="energyDisplay">ENERGY 0 / 5</div><button id="resetEnergyBtn" type="button">RESET ENERGY</button><button id="attackBtn" disabled>ATTACK</button><button id="healBtn" disabled>HEAL CITY</button><div style="margin-top:8px;color:#d8e8ef;font:700 12px system-ui">⚔ Atlas ACTIVE<br>🛡 Vega ACTIVE<br>✚ Iris ACTIVE</div></div>
+  <div id="attackPanel"><div id="attackLabel">CHOOSE A CLASS</div><div id="energyDisplay">ENERGY 0 / 5</div><div id="energyCountdown">NEXT ENERGY IN --h --m</div><button id="attackBtn" disabled>ATTACK</button><button id="healBtn" disabled>HEAL CITY</button><div style="margin-top:8px;color:#d8e8ef;font:700 12px system-ui">⚔ Atlas ACTIVE<br>🛡 Vega ACTIVE<br>✚ Iris ACTIVE</div></div>
   <div id="loading">AWAKENING THE LAST CITY...</div>
   <div id="error">
     <strong>base.png could not be loaded.</strong><br><br>
@@ -86,7 +98,7 @@
     const loading = document.getElementById("loading");
     const errorBox = document.getElementById("error");
     const attackBtn=document.getElementById("attackBtn"), attackLabel=document.getElementById("attackLabel"), healBtn=document.getElementById("healBtn");
-    const classSplash=document.getElementById("classSplash"),selectWarrior=document.getElementById("selectWarrior"),energyDisplay=document.getElementById("energyDisplay"),resetEnergyBtn=document.getElementById("resetEnergyBtn");
+    const classSplash=document.getElementById("classSplash"),selectWarrior=document.getElementById("selectWarrior"),selectDefender=document.getElementById("selectDefender"),selectHealer=document.getElementById("selectHealer"),energyDisplay=document.getElementById("energyDisplay"),energyCountdown=document.getElementById("energyCountdown");
 
     let W = 0;
     let H = 0;
@@ -612,7 +624,7 @@
 
     const balanceModel={
       activePlayers:1,fleetPercent:100,day:1,dayMs:24*60*60*1000,nextDayAt:0,
-      dailyBombardierDefenseDamage:18,dailyBombardierIntegrityDamage:44,
+      dailyBombardierDefenseDamage:22,dailyBombardierIntegrityDamage:55,
       atlasFleetDamage:.04,vegaDefenseRepair:2,irisIntegrityRepair:1,
       stateKey:"lastStandWarriorDailyV1"
     };
@@ -626,17 +638,45 @@
         if(gains>0){playerState.energy=Math.min(playerState.maxEnergy,playerState.energy+gains);playerState.lastEnergyAt+=gains*playerState.energyRegenMs;savePlayerState();}
       }else playerState.lastEnergyAt=now;
       energyDisplay.textContent=`ENERGY ${playerState.energy} / ${playerState.maxEnergy}`;
-      if(!attackFX.active&&!healFX.active)attackBtn.disabled=!playerState.className||playerState.energy<=0;
+      if(playerState.energy>=playerState.maxEnergy){
+        energyCountdown.textContent="ENERGY FULL";
+      }else{
+        const remaining=Math.max(0,playerState.energyRegenMs-(now-playerState.lastEnergyAt));
+        const hours=Math.floor(remaining/3600000);
+        const minutes=Math.floor((remaining%3600000)/60000);
+        energyCountdown.textContent=`NEXT ENERGY IN ${hours}h ${minutes}m`;
+      }
+      if(!attackFX.active&&!healFX.active&&!fortifyFX.active)attackBtn.disabled=!playerState.className||playerState.energy<=0;
       healBtn.disabled=true;
     }
-    function savePlayerState(){try{localStorage.setItem(playerState.stateKey,JSON.stringify({className:playerState.className,energy:playerState.energy,lastEnergyAt:playerState.lastEnergyAt}));}catch(e){}}
+    function savePlayerState(){}
     function loadPlayerState(){
-      try{const saved=JSON.parse(localStorage.getItem(playerState.stateKey)||"null");if(saved){playerState.className=saved.className||null;playerState.energy=Number.isFinite(saved.energy)?saved.energy:5;playerState.lastEnergyAt=saved.lastEnergyAt||Date.now();}}catch(e){}
-      if(playerState.className==="Warrior"){classSplash.style.display="none";attackLabel.textContent="WARRIOR READY";}else{attackBtn.disabled=true;healBtn.disabled=true;}
+      playerState.className=null;
+      playerState.energy=playerState.maxEnergy;
+      playerState.lastEnergyAt=Date.now();
+      classSplash.style.display="grid";
+      energyDisplay.textContent=`ENERGY ${playerState.energy} / ${playerState.maxEnergy}`;
+      attackBtn.disabled=true;
+      attackBtn.textContent="ATTACK";
+      healBtn.disabled=true;
+      attackLabel.textContent="CHOOSE A CLASS";
+    }
+    function selectClass(className){
+      playerState.className=className;
+      playerState.energy=playerState.maxEnergy;
+      playerState.lastEnergyAt=Date.now();
+      savePlayerState();
+      classSplash.style.display="none";
+      const defender=className==="Defender";
+      const healer=className==="Healer";
+      attackBtn.textContent=defender?"FORTIFY":healer?"RESTORE":"ATTACK";
+      attackLabel.textContent=defender?"DEFENDER READY":healer?"HEALER READY":"WARRIOR READY";
       refreshEnergy();
     }
-    selectWarrior.addEventListener("click",()=>{playerState.className="Warrior";playerState.energy=5;playerState.lastEnergyAt=Date.now();savePlayerState();classSplash.style.display="none";attackLabel.textContent="WARRIOR READY";refreshEnergy();});
-    resetEnergyBtn.addEventListener("click",()=>{playerState.energy=playerState.maxEnergy;playerState.lastEnergyAt=Date.now();savePlayerState();refreshEnergy();attackLabel.textContent="ENERGY RESTORED";});
+    selectWarrior.addEventListener("click",()=>selectClass("Warrior"));
+    selectDefender.addEventListener("click",()=>selectClass("Defender"));
+    selectHealer.addEventListener("click",()=>selectClass("Healer"));
+    
     const bombardierRaid={
       ships:[],
       bombs:[],
@@ -862,22 +902,28 @@
     };
 
     function clampStatus(value){return Math.max(0,Math.min(100,value))}
+    function clampOvercharge(value){return Math.max(0,Math.min(120,value))}
 
     const healFX={active:false,start:0,duration:2600,target:null,waves:[],beams:[]};
 
     function performHeal(){
-      if(healFX.active||!cityReady)return;
+      refreshEnergy();
+      if(playerState.className!=="Healer"||playerState.energy<=0||healFX.active||attackFX.active||fortifyFX.active||!cityReady)return;
       const now=performance.now(),layout=cityLayout(now);
+      playerState.energy--;
+      playerState.lastEnergyAt=Date.now();
       healFX.active=true;healFX.start=now;
       healFX.target={x:layout.x+layout.width*(.30+Math.random()*.40),y:layout.y+layout.height*(.32+Math.random()*.28)};
       healFX.waves=[];healFX.beams=[];
-      const amount=5;
-      cityStatus.integrity=clampStatus(cityStatus.integrity+amount);
+      const amount=addDisplayedIntegrity(2);
       for(let i=0;i<18;i++) cityStatus.repairDrones.push({born:now,delay:i*55,start:{x:layout.cx+(Math.random()-.5)*80,y:layout.y+layout.height*.50},end:{x:healFX.target.x+(Math.random()-.5)*85,y:healFX.target.y+(Math.random()-.5)*55},phase:Math.random()*6.28});
       for(let i=0;i<85;i++) cityStatus.sparks.push({born:now+550+Math.random()*900,x:healFX.target.x,y:healFX.target.y,vx:(Math.random()-.5)*130,vy:-45-Math.random()*120,life:650+Math.random()*650,color:"heal"});
       for(let i=0;i<5;i++) healFX.waves.push({born:now+i*180});
-      cityStatus.event={type:"integrityRepair",title:"EMERGENCY RESTORATION",amount,born:now,point:healFX.target};
-      attackLabel.textContent="HEALING IN PROGRESS";healBtn.disabled=true;attackBtn.disabled=true;
+      cityStatus.event={type:"integrityRepair",title:"HEALER RESTORATION",amount,born:now,point:healFX.target};
+      attackLabel.textContent=amount>0?`+${amount.toFixed(amount%1?1:0)} ${getDisplayedStatus().integrity>100?"VITALITY":"INTEGRITY"}`:"VITALITY OVERCHARGE FULL";
+      attackBtn.textContent="RESTORING";
+      attackBtn.disabled=true;
+      savePlayerState();refreshEnergy();
     }
     healBtn.addEventListener("click",performHeal);
 
@@ -919,11 +965,39 @@
       cityStatus.nextEvent=time+4200+Math.random()*3500;
     }
 
+    const fortifyFX={active:false,start:0,duration:1250,amount:2};
+    function performFortify(){
+      refreshEnergy();
+      if(playerState.className!=="Defender"||playerState.energy<=0||attackFX.active||healFX.active||fortifyFX.active||!cityReady)return;
+      playerState.energy--;
+      playerState.lastEnergyAt=Date.now();
+      const now=performance.now(),layout=cityLayout(now);
+      const restored=addDisplayedDefense(fortifyFX.amount);
+      fortifyFX.active=true;fortifyFX.start=now;
+      cityStatus.shieldRipples.push({born:now,x:layout.cx,y:layout.y+layout.height*.56,positive:true});
+      cityStatus.shieldRipples.push({born:now+180,x:layout.cx,y:layout.y+layout.height*.56,positive:true});
+      cityStatus.event={type:"defenseRepair",title:"DEFENDER FORTIFICATION",amount:restored,born:now,point:{x:layout.cx,y:layout.y+layout.height*.25}};
+      attackLabel.textContent=restored>0?`+${restored.toFixed(restored%1?1:0)} ${getDisplayedStatus().defense>100?"OVERCHARGE":"DEFENSE"}`:"DEFENSE OVERCHARGE FULL";
+      attackBtn.textContent="FORTIFYING";
+      attackBtn.disabled=true;
+      savePlayerState();refreshEnergy();
+    }
+    function updateFortify(time){
+      if(!fortifyFX.active)return;
+      if(time-fortifyFX.start>=fortifyFX.duration){
+        fortifyFX.active=false;
+        attackBtn.textContent="FORTIFY";
+        attackLabel.textContent="DEFENDER READY";
+        refreshEnergy();
+      }
+    }
     const attackFX={active:false,type:"",start:0,duration:0,side:1,damage:327,missiles:[],drones:[],bursts:[],flash:0,shake:0};
     const qpoint=(a,b,c,t)=>{const u=1-t;return{x:u*u*a.x+2*u*t*b.x+t*t*c.x,y:u*u*a.y+2*u*t*b.y+t*t*c.y}};
     const attackTarget=()=>({x:attackFX.side>0?W*.84:W*.14,y:attackFX.side>0?H*.30:H*.37});
     function burst(x,y,scale=1){attackFX.bursts.push({x,y,scale,born:performance.now()})}
     function performAttack(){
+      if(playerState.className==="Defender"){performFortify();return;}
+      if(playerState.className==="Healer"){performHeal();return;}
       refreshEnergy();
       if(!playerState.className||playerState.energy<=0||attackFX.active||healFX.active||!cityReady)return;
       playerState.energy--;playerState.lastEnergyAt=Date.now();savePlayerState();refreshEnergy();
@@ -992,7 +1066,7 @@
       }
       attackFX.bursts.forEach(e=>drawBurst(e,time));attackFX.bursts=attackFX.bursts.filter(e=>time-e.born<620);
       if(attackFX.flash>0){ctx.fillStyle=`rgba(190,240,255,${attackFX.flash})`;ctx.fillRect(0,0,W,H);attackFX.flash*=.82}
-      if(p>=1){attackFX.active=false;attackBtn.textContent="ATTACK";attackLabel.textContent="WARRIOR READY";refreshEnergy()}
+      if(p>=1){attackFX.active=false;attackBtn.textContent=playerState.className==="Defender"?"FORTIFY":playerState.className==="Healer"?"RESTORE":"ATTACK";attackLabel.textContent=playerState.className==="Defender"?"DEFENDER READY":playerState.className==="Healer"?"HEALER READY":"WARRIOR READY";refreshEnergy()}
     }
 
     function drawStatusEffects(time,layout){
@@ -1052,7 +1126,7 @@
       // Repair cross hologram
       const crossAlpha=Math.sin(Math.PI*p);ctx.fillStyle=`rgba(205,255,230,${crossAlpha*.7})`;ctx.fillRect(t.x-5,t.y-34,10,68);ctx.fillRect(t.x-34,t.y-5,68,10);
       ctx.restore();
-      if(p>=1){healFX.active=false;healBtn.disabled=true;refreshEnergy();attackLabel.textContent="WARRIOR READY"}
+      if(p>=1){healFX.active=false;healBtn.disabled=true;attackBtn.textContent="RESTORE";attackLabel.textContent="HEALER READY";refreshEnergy()}
     }
 
     function drawFleetBar(){
@@ -1070,9 +1144,12 @@
 
     function drawStatusBars(){
       const panelW=Math.min(320,W*.34),barH=10,x=W-panelW-28,y=58;
-      const drawBar=(label,value,yy,c1,c2)=>{ctx.save();ctx.textAlign="left";ctx.shadowBlur=10;ctx.shadowColor="#000";ctx.fillStyle="rgba(235,248,255,.92)";ctx.font=`800 ${Math.max(11,Math.min(14,W*.012))}px system-ui`;ctx.fillText(label,x,yy);ctx.textAlign="right";ctx.fillText(`${Math.round(value)}%`,x+panelW,yy);ctx.fillStyle="rgba(5,15,24,.68)";ctx.fillRect(x,yy+8,panelW,barH);const g=ctx.createLinearGradient(x,0,x+panelW,0);g.addColorStop(0,c1);g.addColorStop(1,c2);ctx.fillStyle=g;ctx.fillRect(x,yy+8,panelW*(value/100),barH);ctx.strokeStyle="rgba(255,255,255,.24)";ctx.strokeRect(x,yy+8,panelW,barH);ctx.restore()};
-      drawBar("DEFENSE",cityStatus.defense,y,"#247cba","#72e4ff");
-      drawBar("CITY INTEGRITY",cityStatus.integrity,y+43,"#b94234","#ff9d62");
+      const displayed=getDisplayedStatus();
+      const displayedDefense=displayed.defense;
+      const displayedIntegrity=displayed.integrity;
+      const drawBar=(label,value,yy,c1,c2,boostColor)=>{ctx.save();ctx.textAlign="left";ctx.shadowBlur=10;ctx.shadowColor="#000";ctx.fillStyle="rgba(235,248,255,.92)";ctx.font=`800 ${Math.max(11,Math.min(14,W*.012))}px system-ui`;ctx.fillText(label,x,yy);ctx.textAlign="right";ctx.fillStyle=value>100?boostColor:"rgba(235,248,255,.92)";ctx.fillText(`${Math.round(value)}%`,x+panelW,yy);ctx.fillStyle="rgba(5,15,24,.68)";ctx.fillRect(x,yy+8,panelW,barH);const base=Math.min(100,value);const g=ctx.createLinearGradient(x,0,x+panelW,0);g.addColorStop(0,c1);g.addColorStop(1,c2);ctx.fillStyle=g;ctx.fillRect(x,yy+8,panelW*(base/100),barH);if(value>100){const over=Math.min(20,value-100);ctx.fillStyle=boostColor;ctx.shadowBlur=14;ctx.shadowColor=boostColor;ctx.fillRect(x,yy+8,panelW*(over/20),Math.max(3,barH*.34));ctx.shadowBlur=0;}ctx.strokeStyle="rgba(255,255,255,.24)";ctx.strokeRect(x,yy+8,panelW,barH);ctx.restore()};
+      drawBar("DEFENSE",displayedDefense,y,"#247cba","#72e4ff","#d9fbff");
+      drawBar("CITY INTEGRITY",displayedIntegrity,y+43,"#b94234","#ff9d62","#8dffbf");
     }
 
     function drawHud() {
@@ -1102,16 +1179,62 @@
       ctx.restore();
     }
 
-    function saveDailyState(){try{localStorage.setItem(balanceModel.stateKey,JSON.stringify({day:balanceModel.day,nextDayAt:balanceModel.nextDayAt,fleetPercent:balanceModel.fleetPercent,defense:cityStatus.defense,integrity:cityStatus.integrity}));}catch(e){}}
+    function saveDailyState(){}
     function resolveDailyWarCycle(){
       balanceModel.day++;balanceModel.fleetPercent=clampStatus(balanceModel.fleetPercent-balanceModel.atlasFleetDamage);
-      const netDefenseDamage=Math.max(0,balanceModel.dailyBombardierDefenseDamage-balanceModel.vegaDefenseRepair),before=cityStatus.defense;
-      cityStatus.defense=clampStatus(before-netDefenseDamage);const overflow=Math.max(0,netDefenseDamage-before);
-      if(cityStatus.defense<=0)cityStatus.integrity=clampStatus(cityStatus.integrity-balanceModel.dailyBombardierIntegrityDamage-overflow+balanceModel.irisIntegrityRepair);
-      else cityStatus.integrity=clampStatus(cityStatus.integrity+balanceModel.irisIntegrityRepair);
+      const netDefenseDamage=Math.max(0,balanceModel.dailyBombardierDefenseDamage-balanceModel.vegaDefenseRepair),before=Math.max(0,cityStatus.defense);
+      cityStatus.defense=clampOvercharge(before-netDefenseDamage);const overflow=Math.max(0,netDefenseDamage-before);
+      if(cityStatus.defense<=0)cityStatus.integrity=clampOvercharge(cityStatus.integrity-balanceModel.dailyBombardierIntegrityDamage-overflow+balanceModel.irisIntegrityRepair);
+      else cityStatus.integrity=clampOvercharge(cityStatus.integrity+balanceModel.irisIntegrityRepair);
       balanceModel.nextDayAt+=balanceModel.dayMs;saveDailyState();
     }
-    function loadDailyState(){const now=Date.now();try{const saved=JSON.parse(localStorage.getItem(balanceModel.stateKey)||"null");if(saved){balanceModel.day=saved.day||1;balanceModel.nextDayAt=saved.nextDayAt||now+balanceModel.dayMs;balanceModel.fleetPercent=Number.isFinite(saved.fleetPercent)?saved.fleetPercent:100;cityStatus.defense=Number.isFinite(saved.defense)?saved.defense:100;cityStatus.integrity=Number.isFinite(saved.integrity)?saved.integrity:100;}else balanceModel.nextDayAt=now+balanceModel.dayMs;let guard=0;while(now>=balanceModel.nextDayAt&&guard++<30)resolveDailyWarCycle();saveDailyState();}catch(e){balanceModel.nextDayAt=now+balanceModel.dayMs;}}
+    function loadDailyState(){
+      balanceModel.day=1;
+      balanceModel.fleetPercent=100;
+      balanceModel.nextDayAt=Date.now()+balanceModel.dayMs;
+      cityStatus.defense=100;
+      cityStatus.integrity=100;
+    }
+    function getCycleProgress(){
+      return Math.max(0,Math.min(1,1-((balanceModel.nextDayAt-Date.now())/balanceModel.dayMs)));
+    }
+    function getProjectedCycleEnd(){
+      const defenseLoss=Math.max(0,balanceModel.dailyBombardierDefenseDamage-balanceModel.vegaDefenseRepair);
+      const defenseBefore=Math.max(0,cityStatus.defense);
+      const defenseAfter=Math.max(0,defenseBefore-defenseLoss);
+      const overflow=Math.max(0,defenseLoss-defenseBefore);
+      let integrityAfter=cityStatus.integrity;
+      if(defenseAfter<=0){
+        integrityAfter=cityStatus.integrity-balanceModel.dailyBombardierIntegrityDamage-overflow+balanceModel.irisIntegrityRepair;
+      }else{
+        integrityAfter=cityStatus.integrity+balanceModel.irisIntegrityRepair;
+      }
+      return {
+        defense:Math.max(0,Math.min(120,defenseAfter)),
+        integrity:Math.max(0,Math.min(120,integrityAfter))
+      };
+    }
+    function getDisplayedStatus(){
+      const progress=getCycleProgress();
+      const projected=getProjectedCycleEnd();
+      return {
+        defense:Math.max(0,Math.min(120,cityStatus.defense+(projected.defense-cityStatus.defense)*progress)),
+        integrity:Math.max(0,Math.min(120,cityStatus.integrity+(projected.integrity-cityStatus.integrity)*progress))
+      };
+    }
+    function addDisplayedDefense(amount){
+      const shown=getDisplayedStatus().defense;
+      const restored=Math.max(0,Math.min(amount,120-shown));
+      cityStatus.defense+=restored;
+      return restored;
+    }
+    function addDisplayedIntegrity(amount){
+      const shown=getDisplayedStatus().integrity;
+      const restored=Math.max(0,Math.min(amount,120-shown));
+      cityStatus.integrity+=restored;
+      return restored;
+    }
+
     function update(dt) {
       if(Date.now()>=balanceModel.nextDayAt)resolveDailyWarCycle();
       refreshEnergy();
@@ -1152,6 +1275,7 @@
       ctx.restore();
       drawBombardierRaid(time);
       drawAttackEffects(time);
+      updateFortify(time);
       drawHud();
       drawFleetBar();
       drawStatusBars();
