@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head><!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L1KQ29P2GM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-L1KQ29P2GM');</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Floor Is Lava: Infinite</title>
+<style>
+  :root{--ink:#fff6d8;--orange:#ff7a18;--red:#ef233c;--panel:rgba(21,14,31,.84)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#130c1c;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink)}
+  canvas{display:block;width:100%;height:100%;image-rendering:pixelated;touch-action:none}
+  #hud{position:fixed;inset:0;pointer-events:none;padding:max(12px,env(safe-area-inset-top)) 12px max(14px,env(safe-area-inset-bottom));display:flex;flex-direction:column;justify-content:space-between}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;text-shadow:2px 2px #170b23}
+  .stat{background:var(--panel);border:2px solid #ffd166;box-shadow:4px 4px 0 #6d294a;padding:7px 10px;border-radius:4px;font-weight:900;font-size:13px;letter-spacing:.4px}
+  .stat b{display:block;font-size:20px;color:#fff}
+  #zone{text-align:center;color:#ffd166;min-width:108px}
+  #controls{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:end;pointer-events:auto;padding:0 8px}
+  .btn{border:0;border-radius:5px;background:#ffd166;color:#201126;box-shadow:0 5px 0 #9f4f35;min-width:92px;height:58px;font:bold 23px ui-monospace,monospace;touch-action:none;user-select:none}
+  .btn:active,.btn.down{transform:translateY(4px);box-shadow:0 1px 0 #9f4f35}
+  #jump{background:#71f79f;box-shadow:0 5px 0 #287a51} #power{background:#5de0ff;box-shadow:0 5px 0 #247a94;font-size:16px} .control-group{display:flex;gap:10px}.control-group.right{justify-content:flex-end}.control-group .btn{min-width:72px;flex:1;max-width:112px}@media(max-width:430px){#hud{padding-left:8px;padding-right:8px}.top{gap:4px;flex-wrap:wrap}.stat{padding:5px 7px;font-size:10px}.stat b{font-size:15px}#controls{gap:8px;padding-bottom:max(4px,env(safe-area-inset-bottom))}.control-group{gap:7px}.btn{height:62px;min-width:64px;font-size:22px}#power{font-size:13px}}
+  #overlay{position:fixed;inset:0;background:linear-gradient(rgba(14,8,24,.52),rgba(14,8,24,.88));display:grid;place-items:center;padding:20px}
+  .card{width:min(430px,100%);background:#21142f;border:4px solid #ffd166;box-shadow:8px 8px 0 #7c2749;padding:22px;text-align:center}
+  h1{font-size:clamp(28px,9vw,48px);line-height:.95;margin:0 0 13px;color:#ffdf6e;text-shadow:4px 4px #b32d49}
+  p{line-height:1.45;margin:9px 0}.small{font-size:12px;opacity:.8}
+  #start{margin-top:12px;width:100%;height:58px;background:#ff7a18;color:white;border:0;border-radius:4px;box-shadow:0 6px 0 #9e2f3f;font:bold 20px ui-monospace,monospace}
+  #start:active{transform:translateY(5px);box-shadow:0 1px 0 #9e2f3f}
+  #toast{position:fixed;top:23%;left:50%;transform:translate(-50%,-12px);opacity:0;background:#fff;color:#29132e;padding:8px 12px;border:3px solid #ff7a18;font-weight:bold;transition:.18s;pointer-events:none;white-space:nowrap}
+  #toast.show{opacity:1;transform:translate(-50%,0)} #toast.record{font-size:clamp(22px,7vw,38px);padding:14px 20px;border-color:#ffd166;background:#2b173c;color:#ffd166;box-shadow:7px 7px 0 #9e2f3f;text-shadow:2px 2px #6d294a} #shareBtn,#contactBtn,#otherGamesBtn{border:0;border-radius:4px;background:#ffd166;color:#21142f;font:bold 14px ui-monospace,monospace;box-shadow:0 4px 0 #9f4f35}
+  @media(min-width:800px){#controls{padding-bottom:8px}.btn{min-width:120px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div class="top">
+    <div class="stat">HEIGHT<b><span id="height">0</span>m</b></div>
+    <div class="stat" id="heat">COOL</div><div class="stat" id="snow">❄ x3 / 5 | [E] POWER</div>
+    <div class="stat">BEST<b><span id="best">0</span>m</b></div>
+  </div>
+  <div id="controls">
+    <div class="control-group left"><button class="btn" id="left" aria-label="Move left">◀</button><button class="btn" id="right" aria-label="Move right">▶</button></div>
+    <div class="control-group right"><button class="btn" id="jump" aria-label="Jump">JUMP</button><button class="btn" id="power" aria-label="Use snow power">❄ POWER (E)</button></div>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="overlay">
+  <div class="card">
+    <h1>FLOOR IS<br>LAVA!</h1>
+    <p>Climb forever. The lava never stops.</p>
+    <p><b>Move:</b> ◀ ▶ or A/D<br><b>Jump:</b> Space / Up / JUMP<br><b>Power:</b> Press E or tap ❄ POWER (E)</p>
+    <p class="small">V20 adds a live new-record celebration and a score-focused death screen with Play Again and Share Score actions.</p>
+    <button id="start">START CLIMBING</button><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px"><button id="shareBtn" style="height:44px">SHARE</button><a id="otherGamesBtn" href="https://untanglr.org" target="_blank" rel="noopener noreferrer" style="height:44px;display:grid;place-items:center;text-decoration:none">TRY OTHER GAMES</a><button id="contactBtn" style="grid-column:1 / -1;height:44px">CONTACT US</button></div>
+  </div>
+</div>
+<script>
+(()=>{
+'use strict';
+const C=document.getElementById('game'),X=C.getContext('2d'),$=id=>document.getElementById(id);
+const H=$('height'),B=$('best'),HEAT=$('heat'),SNOW=$('snow'),O=$('overlay'),S=$('start'),T=$('toast');
+let W=0,V=0,dpr=1,running=false,last=0,cam=0,score=0,best=+(localStorage.lavaBest||0),combo=0,shake=0,elapsed=0,runStartBest=best,newRecord=false;
+B.textContent=best; const keys={left:false,right:false};
+let player,plats,ropes,particles,debris,powerups,lavaY,nextY,worldTop,startPlat,routeLast,audioCtx,lastDebris=0,snowCharges=3;
+const zones=[['BEDROOM','#34204a','#67456e'],['KITCHEN','#193f46','#3b7275'],['SCHOOL','#2a315b','#57699a'],['ROOFTOPS','#313744','#6d7480'],['CLOUDS','#315b7b','#79b9d2'],['SPACE','#0d1029','#29244d']];
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;V=innerHeight;C.width=W*dpr;C.height=V*dpr;X.setTransform(dpr,0,0,dpr,0,0)} addEventListener('resize',resize);resize();
+const rnd=(a,b)=>a+Math.random()*(b-a);
+function sound(freq=440,dur=.08,type='square',vol=.035){try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();let o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.setValueAtTime(freq,audioCtx.currentTime);g.gain.setValueAtTime(vol,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur)}catch(e){}}
+function reset(){
+ score=cam=combo=shake=elapsed=lastDebris=0;snowCharges=3;runStartBest=best;newRecord=false;particles=[];debris=[];powerups=[];plats=[];ropes=[];lavaY=V+72;
+ startPlat={x:Math.max(12,W/2-95),y:V-118,w:190,h:22,type:0,kind:'solid',life:999,angle:0,vy:0};plats.push(startPlat);
+ player={x:startPlat.x+startPlat.w/2-12,y:startPlat.y-34,w:24,h:34,vx:0,vy:0,on:true,onObj:startPlat,face:1,coyote:8,hanging:null};
+ routeLast=startPlat;nextY=startPlat.y;worldTop=nextY;while(nextY>-V*1.8)makeChallenge();
+ H.textContent=0;HEAT.textContent='COOL';HEAT.style.color='#71f79f';snowCharges=3;SNOW.textContent='❄ x'+snowCharges+' / 5 | [E] POWER';
+}
+function makeChallenge(){
+ const d=Math.min(score/700,1),roll=Math.random();
+ const previousCentre=routeLast.x+routeLast.w/2;
+
+ // Moving-platform bridge sequence:
+ // platform 1 ---- moving platform ---- platform 2
+ // Platform 2 is parallel with platform 1. The next generated route then
+ // continues upward from platform 2.
+ const bridgeChance=score<150?0.015:score<300?0.055:0.11;
+ const fixedBridgeSpan=routeLast.w/2+20+96+64+20+48;const bridgeFits=(W-14-previousCentre>=fixedBridgeSpan)||(previousCentre-14>=fixedBridgeSpan);const canBridge=W>330&&bridgeFits&&!routeLast.bridgeExit&&Math.random()<bridgeChance;
+ if(canBridge){
+   const landingW=96;
+   const landingY=routeLast.y;
+   const shuttleW=96;
+   const edgeGap=20;
+   const shuttleTravel=64;
+   const totalSpan=routeLast.w/2+edgeGap+shuttleW+shuttleTravel+edgeGap+landingW/2;
+   const roomRight=W-14-previousCentre,roomLeft=previousCentre-14;
+   const dir=roomRight>=totalSpan?1:roomLeft>=totalSpan?-1:(roomRight>=roomLeft?1:-1);
+   const landingCentre=Math.max(14+landingW/2,Math.min(W-14-landingW/2,previousCentre+dir*totalSpan));
+   const landingX=landingCentre-landingW/2;
+
+   // Fixed geometry: 20px boarding gap, 64px shuttle travel, 20px exit gap.
+   const startCentre=previousCentre+dir*(routeLast.w/2+edgeGap+shuttleW/2);
+   const endCentre=startCentre+dir*shuttleTravel;
+   const midCentre=(startCentre+endCentre)/2;
+   const amplitude=shuttleTravel/2;
+   const shuttle={
+     x:midCentre-shuttleW/2,y:landingY,w:shuttleW,h:16,type:3,
+     kind:'moving',life:999,stand:0,angle:0,vy:0,falling:false,
+     baseX:midCentre-shuttleW/2,moveAmp:amplitude,
+     movePhase:dir>0?-Math.PI/2:Math.PI/2,bridgeShuttle:true
+   };
+   const landing={
+     x:landingX,y:landingY,w:landingW,h:rnd(16,20),type:0,
+     kind:'solid',life:999,stand:0,angle:0,vy:0,falling:false,
+     baseX:landingX,moveAmp:0,movePhase:0,bridgeExit:true
+   };
+   plats.push(shuttle,landing);
+   routeLast=landing;nextY=landingY;worldTop=Math.min(worldTop,landingY);
+   return;
+ }
+
+ // After a bridge, or for normal sections, climb upward from the latest
+ // destination platform using a verified reachable jump.
+ const w=rnd(78,116-d*18),gapY=rnd(68,83+d*3);
+ nextY=routeLast.y-gapY;
+ const minShift=Math.min(80,(routeLast.w+w)/2+30);
+ const maxShift=Math.min(128,(routeLast.w+w)/2+70);
+ const dir=Math.random()<.5?-1:1;
+ const centre=Math.max(14+w/2,Math.min(W-14-w/2,previousCentre+dir*rnd(minShift,maxShift)));
+ const x=centre-w/2;
+ let kind=roll<.19?'fall':roll<.38?'tilt':roll<.52?'crumble':roll<.65?'bounce':'solid';
+ const golden=kind==='solid'&&Math.random()<.085;
+ const p={x,y:nextY,w,h:rnd(15,20),type:(Math.random()*5)|0,kind,life:999,stand:0,angle:0,vy:0,falling:false,baseX:x,moveAmp:0,movePhase:0,bridgeExit:false,golden,claimed:false,object:(Math.random()*5)|0};
+ plats.push(p);if(kind==='solid'&&Math.random()<.08){powerups.push({x:x+w/2,y:nextY-27,r:10,taken:false,pulse:rnd(0,6.28)})}routeLast=p;worldTop=nextY;
+}
+function jump(){if(!running)return;if(player.on||player.coyote>0){player.vy=-10.8;player.on=false;player.onObj=null;player.coyote=0;sound(260,.07,'square',.03);burst(player.x+12,player.y+34,'#ffd166',5)}}
+function bind(id,key){let e=$(id),down=a=>{a.preventDefault();keys[key]=true;e.classList.add('down')},up=a=>{a.preventDefault();keys[key]=false;e.classList.remove('down')};e.addEventListener('pointerdown',down);e.addEventListener('pointerup',up);e.addEventListener('pointercancel',up);e.addEventListener('pointerleave',up)}
+bind('left','left');bind('right','right');$('jump').addEventListener('pointerdown',e=>{e.preventDefault();jump()});
+addEventListener('keydown',e=>{if(['ArrowLeft','a','A'].includes(e.key))keys.left=true;if(['ArrowRight','d','D'].includes(e.key))keys.right=true;if([' ','ArrowUp','w','W'].includes(e.key)){e.preventDefault();jump()}});function usePower(){if(!running)return;if(snowCharges>0){snowCharges--;SNOW.textContent='❄ x'+snowCharges+' / 5 | [E] POWER';lavaY=Math.min(V+260,lavaY+240);shake=8;sound(520,.2,'sine',.08);toast('❄ LAVA PUSHBACK!')}else{toast('NO CHARGES - PRESS E WHEN READY')}}addEventListener('keydown',e=>{if(['e','E','c','C'].includes(e.key)){e.preventDefault();usePower()}});$('power').addEventListener('pointerdown',e=>{e.preventDefault();usePower()});addEventListener('keyup',e=>{if(['ArrowLeft','a','A'].includes(e.key))keys.left=false;if(['ArrowRight','d','D'].includes(e.key))keys.right=false});C.addEventListener('pointerdown',e=>{if(running&&e.clientY<V*.72)jump()});
+S.onclick=()=>{reset();running=true;O.style.display='none';last=performance.now()};$('shareBtn').onclick=async()=>{const gameUrl='https://untanglr.org';let txt=`🔥 I survived ${score}m in Floor Is Lava! My top score is ${best}m. Can you beat me?`;let shareText=`${txt} ${gameUrl}`;try{if(navigator.share)await navigator.share({title:'Floor Is Lava: Infinite',text:txt,url:gameUrl});else if(navigator.clipboard){await navigator.clipboard.writeText(shareText);toast('SCORE + GAME LINK COPIED!')}else{prompt('Copy your score and game link:',shareText)}}catch(e){if(e&&e.name!=='AbortError')prompt('Copy your score and game link:',shareText)}};$('contactBtn').onclick=()=>{let msg='Contact us: your@email.com';try{location.href='mailto:your@email.com?subject=Floor%20Is%20Lava%20Feedback'}catch(e){alert(msg)}};
+function burst(x,y,c,n){for(let i=0;i<n;i++)particles.push({x,y,vx:rnd(-2.5,2.5),vy:rnd(-4,-1),life:rnd(18,35),c})}
+function toast(s){T.textContent=s;T.className='show';clearTimeout(toast.t);toast.t=setTimeout(()=>T.className='',700)}function celebrateRecord(){if(newRecord||score<=runStartBest||score<=0)return;newRecord=true;shake=15;sound(1180,.28,'triangle',.085);setTimeout(()=>sound(1450,.2,'triangle',.06),90);for(let i=0;i<55;i++)particles.push({x:player.x+12,y:player.y+10,vx:rnd(-5,5),vy:rnd(-7,-1),life:rnd(35,70),c:i%3?'#ffd166':'#ffffff'});T.textContent='🏆 NEW RECORD!';T.className='show record';clearTimeout(toast.t);toast.t=setTimeout(()=>T.className='',1500)}
+function ropeAngle(r){return Math.sin(elapsed*r.speed+r.phase)*.82}
+function ropeEnd(r){let a=ropeAngle(r);return{x:r.ax+Math.sin(a)*r.len,y:r.ay+Math.cos(a)*r.len}}
+function platformTopAt(p,x){if(p.kind!=='tilt')return p.y;return p.y+Math.tan(p.angle)*(x-(p.x+p.w/2))}
+function update(dt){
+ const f=Math.min(dt/16.67,2);elapsed+=dt;let ax=(keys.right?1:0)-(keys.left?1:0);
+ if(player.hanging){let e=ropeEnd(player.hanging);player.x=e.x-player.w/2;player.y=e.y-player.h/2;player.vx=player.vy=0;if(ax)player.hanging.phase+=ax*.045*f}
+ else{
+   player.vx+=ax*.72*f;player.vx*=Math.pow(.82,f);player.vx=Math.max(-5.3,Math.min(5.3,player.vx));if(ax)player.face=ax;
+   player.vy+=.46*f;let oldBottom=player.y+player.h;player.x+=player.vx*f;player.y+=player.vy*f;if(player.x<-player.w)player.x=W;if(player.x>W)player.x=-player.w;
+   let landed=false,landObj=null;
+   if(player.vy>=0)for(const p of plats){if(p.life<=0)continue;let top=platformTopAt(p,player.x+player.w/2);if(oldBottom<=top+5&&player.y+player.h>=top&&player.x+player.w>p.x+4&&player.x<p.x+p.w-4){player.y=top-player.h;player.vy=0;landed=true;landObj=p;if(player.onObj!==p){combo++;lavaY=Math.min(V+140,lavaY+2.5);let landingX=player.x+player.w/2,edge=Math.min(landingX-p.x,p.x+p.w-landingX);burst(player.x+12,top,'#fff1a8',7);if(edge<10){score+=5;H.textContent=score;sound(740,.1,'square',.045);toast('NEAR MISS! +5')}else if(p.golden&&!p.claimed){p.claimed=true;score+=25;H.textContent=score;burst(player.x+12,top,'#ffd166',16);sound(880,.16,'triangle',.05);toast('GOLDEN LANDING! +25')}else if(combo%5===0)toast('COMBO x'+Math.floor(combo/5+1));if(p.kind==='fall')toast('MOVE! PLATFORM FALLING');if(p.kind==='tilt')toast('KEEP YOUR BALANCE');if(p.kind==='crumble')toast('CRUMBLING!');if(p.kind==='bounce'){player.vy=p.w>96?-15.5:-14.2;landed=false;landObj=null;burst(player.x+12,top,'#71f79f',12);sound(p.w>96?300:360,.14,'sine',.055);toast(p.w>96?'MEGA BOING!':'BOING!')}}break}}
+   player.on=landed;player.onObj=landObj;if(landed)player.coyote=8;else player.coyote=Math.max(0,player.coyote-f);
+
+ }
+ for(const p of plats){
+   if(p.kind==='moving'){let oldX=p.x;p.x=p.baseX+Math.sin(elapsed*.001294+p.movePhase)*p.moveAmp;if(player.onObj===p)player.x+=p.x-oldX}
+   if(player.onObj===p){p.stand=(p.stand||0)+f;if(p.kind==='fall'&&p.stand>28&&!p.falling){p.falling=true;sound(125,.22,'sawtooth',.045)}if(p.kind==='crumble'&&p.stand>28)p.life-=2.0*f;if(p.kind==='tilt'&&p.stand>8){let side=((player.x+12)-(p.x+p.w/2))/(p.w/2);p.angle+=side*.0105*f;p.angle=Math.max(-.48,Math.min(.48,p.angle));if(Math.abs(p.angle)>.24)player.vx+=Math.sign(p.angle)*(.18+Math.abs(p.angle)*.42)*f}}
+   else{p.stand=Math.max(0,(p.stand||0)-.7*f);if(p.kind==='tilt')p.angle*=Math.pow(.97,f)}
+   if(p.falling){p.vy+=.17*f;p.y+=p.vy*f}
+ }
+ // Falling debris becomes active after the opening section.
+ if(score>90&&elapsed-lastDebris>rnd(1700,3000)){lastDebris=elapsed;let size=rnd(14,26);debris.push({x:rnd(8,W-size-8),y:-cam-45,w:size,h:rnd(12,24),vy:rnd(2.1,3.1),spin:rnd(-.08,.08),a:0})}
+ for(const d of debris){d.vy+=.035*f;d.y+=d.vy*f;d.a+=d.spin*f;let sy=d.y+cam;if(player.x<d.x+d.w&&player.x+player.w>d.x&&player.y+cam<sy+d.h&&player.y+player.h+cam>sy){sound(95,.35,'sawtooth',.08);shake=13;gameOver();return}}
+ debris=debris.filter(d=>d.y+cam<V+70);
+ // Rare snowflake power-up pushes the lava downward and buys breathing room.
+ for(const q of powerups){if(q.taken)continue;let dx=player.x+player.w/2-q.x,dy=player.y+player.h/2-q.y;if(dx*dx+dy*dy<28*28){q.taken=true;if(snowCharges<5){snowCharges++;SNOW.textContent='❄ x'+snowCharges+' / 5 | [E] POWER';sound(620,.25,'sine',.07);toast('SNOWFLAKE STORED')}else{toast('CHARGES FULL')}}}
+ powerups=powerups.filter(q=>!q.taken&&q.y+cam<V+100);
+ const targetCam=Math.max(0,V*.43-player.y);cam+=(targetCam-cam)*.09*f;const metres=Math.max(0,Math.floor(cam/7));if(metres>score){score=metres;H.textContent=score}if(score>best){best=score;localStorage.lavaBest=best;B.textContent=best}celebrateRecord()
+ // Three-second grace period, then lava visibly rises faster if the player stalls.
+ if(elapsed>4000){const difficulty=Math.min(score/850,1);const dangerBoost=Math.max(0,(player.y+cam-V*.52)/V);lavaY-=(.20+difficulty*.62+dangerBoost*.55)*f}
+ while(worldTop+cam>-V*.9)makeChallenge();plats=plats.filter(p=>p.y+cam<V+130&&p.life>0);ropes=ropes.filter(r=>r.ay+cam<V+160);
+ for(const q of particles){q.x+=q.vx*f;q.y+=q.vy*f;q.vy+=.15*f;q.life-=f}particles=particles.filter(q=>q.life>0);
+ let lavaGap=lavaY-(player.y+player.h+cam);if(lavaGap<75){HEAT.textContent='RUN!!!';HEAT.style.color='#ff3b30'}else if(lavaGap<150){HEAT.textContent='HOT';HEAT.style.color='#ff7a18'}else if(lavaGap<240){HEAT.textContent='WARM';HEAT.style.color='#ffd166'}else{HEAT.textContent='COOL';HEAT.style.color='#71f79f'}if(player.y+player.h+cam>lavaY-4||player.y+cam>V+100)gameOver();
+}
+function gameOver(){
+ if(!running)return;
+ running=false;shake=10;
+ const finalScore=score;
+ const wasRecord=newRecord||finalScore>runStartBest;
+ if(finalScore>best){best=finalScore;localStorage.lavaBest=best}
+ B.textContent=best;O.style.display='grid';
+ O.querySelector('h1').innerHTML=wasRecord?'🏆 NEW<br>RECORD!':'🔥 LAVA<br>GOT YOU!';
+ O.querySelector('p').innerHTML='<b style="font-size:34px;color:#ffd166">'+finalScore+'m</b><br>BEST: <b>'+best+'m</b>'+(wasRecord?'<br><span style="font-size:12px">Previous best: '+runStartBest+'m</span>':'');
+ O.querySelector('.small').textContent=wasRecord?'Your highest climb yet. Share it or go higher.':'So close. One more climb?';
+ S.textContent='PLAY AGAIN';
+ $('shareBtn').textContent='SHARE SCORE';$('otherGamesBtn').textContent='TRY OTHER GAMES';
+}
+function rect(x,y,w,h,c){X.fillStyle=c;X.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))}
+function draw(){
+ const z=zones[Math.min(zones.length-1,Math.floor(score/120))];let sx=shake?rnd(-shake,shake):0,sy=shake?rnd(-shake,shake):0;shake*=.86;X.save();X.translate(sx,sy);rect(0,0,W,V,z[0]);
+ X.globalAlpha=.28;for(let i=0;i<10;i++){let x=(i*83+31)%W,h=55+(i*37)%170;rect(x,V-h,55,h,z[1]);rect(x+12,V-h-18,18,18,z[1])}X.globalAlpha=1;
+
+ const cols=['#c98d60','#66c7a5','#e6b85c','#8eb5d6','#d77477'];for(const p of plats){let y=p.y+cam;if(y<-40||y>V+40)continue;X.save();X.translate(p.x+p.w/2,y+p.h/2);X.rotate(p.angle||0);X.globalAlpha=p.life<999?Math.max(.15,p.life/45):1;let c=p.golden?'#ffd166':p.kind==='bounce'?'#71f79f':p.kind==='moving'?'#56cfe1':p.kind==='fall'?'#e76f51':p.kind==='tilt'?'#9b5de5':p.kind==='crumble'?'#f4a261':cols[p.type];let wobble=p.kind==='fall'&&p.stand>12&&!p.falling?Math.sin(elapsed*.06)*3:0;X.translate(wobble,0);rect(-p.w/2,-p.h/2,p.w,p.h,c);rect(-p.w/2,-p.h/2,p.w,4,'#fff0b3');if(p.kind==='tilt'){rect(-5,p.h/2,10,13,'#7046a3')}else if(p.kind!=='fall'&&p.kind!=='bounce'){rect(-p.w/2+7,p.h/2,9,10,c);rect(p.w/2-16,p.h/2,9,10,c)}if(p.kind==='bounce'){rect(-p.w/2+8,p.h/2,p.w-16,5,'#d8ffe7')}if(p.kind==='moving'){rect(-19,-2,8,4,'#17324d');rect(-4,-2,8,4,'#17324d');rect(11,-2,8,4,'#17324d')}if(p.golden){rect(-7,-p.h/2-8,14,6,'#fff4a3')}X.restore()}X.globalAlpha=1;
+ for(const q of powerups){if(q.taken)continue;let y=q.y+cam,b=2+Math.sin(elapsed*.006+q.pulse)*2;X.save();X.translate(q.x,y);X.rotate(elapsed*.0015);rect(-3,-12-b,6,24,'#b9f3ff');rect(-12-b,-3,24,6,'#b9f3ff');rect(-7,-7,14,14,'#5de0ff');rect(-3,-3,6,6,'#ffffff');X.restore()}
+ for(const d of debris){let y=d.y+cam;X.save();X.translate(d.x+d.w/2,y+d.h/2);X.rotate(d.a);rect(-d.w/2,-d.h/2,d.w,d.h,'#5d4037');rect(-d.w/2,-d.h/2,d.w,4,'#9a6a55');X.restore()}
+ let px=player.x,py=player.y+cam;rect(px+5,py,14,13,'#ffd19a');rect(px+3,py+13,18,13,'#4dd6a8');rect(px+1,py+26,8,8,'#46406f');rect(px+15,py+26,8,8,'#46406f');rect(px+(player.face>0?15:7),py+5,3,3,'#25182c');for(const q of particles)rect(q.x,q.y+cam,4,4,q.c);
+ let ly=lavaY;X.fillStyle='#ffb000';X.beginPath();X.moveTo(0,ly);for(let x=0;x<=W;x+=18)X.lineTo(x,ly+Math.sin((x+performance.now()*.08)/18)*7);X.lineTo(W,V);X.lineTo(0,V);X.fill();rect(0,ly+15,W,V-ly,'#ef233c');for(let i=0;i<18;i++){let x=(i*71+performance.now()*.05)%W,y=ly+18+(i*29)%Math.max(24,V-ly);rect(x,y,8,5,'#ffd166')}X.restore();
+}
+function loop(t){let dt=t-last;last=t;if(running)update(dt);draw();requestAnimationFrame(loop)}reset();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
