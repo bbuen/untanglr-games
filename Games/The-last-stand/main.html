@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Last Stand - Living City Prototype</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #090d18;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #dff6ff;
+      background: radial-gradient(circle at 50% 40%, #172541 0%, #090d18 70%);
+      letter-spacing: .12em;
+      font-size: 14px;
+      z-index: 5;
+      transition: opacity .35s ease;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    #error {
+      display: none;
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(560px, calc(100% - 32px));
+      padding: 20px;
+      color: #fff;
+      background: rgba(45, 10, 14, .94);
+      border: 1px solid #ff6577;
+      border-radius: 14px;
+      line-height: 1.55;
+      z-index: 10;
+    }
+    #error code { color: #8fe8ff; }
+    #attackPanel{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:20;text-align:center;pointer-events:none}
+    #attackLabel{height:18px;margin-bottom:7px;color:#e3f8ff;font:800 12px system-ui;letter-spacing:.14em;text-shadow:0 2px 8px #000}
+    #attackBtn{pointer-events:auto;min-width:190px;padding:15px 28px;border:1px solid rgba(130,224,255,.75);border-radius:12px;color:#effbff;background:linear-gradient(#1d5b7f,#0a2337);box-shadow:0 0 22px rgba(65,190,255,.3),inset 0 1px rgba(255,255,255,.2);font:900 17px system-ui;letter-spacing:.16em;cursor:pointer}
+    #attackBtn:hover:not(:disabled){filter:brightness(1.18);transform:translateY(-2px)}
+    #attackBtn:disabled{opacity:.55;cursor:default}
+    #healBtn{display:none;pointer-events:auto;min-width:190px;padding:13px 28px;margin-top:7px;border:1px solid rgba(126,255,196,.78);border-radius:12px;color:#effff7;background:linear-gradient(#24785d,#0b352b);box-shadow:0 0 22px rgba(72,255,186,.25),inset 0 1px rgba(255,255,255,.2);font:900 15px system-ui;letter-spacing:.16em;cursor:pointer}
+    #healBtn:hover:not(:disabled){filter:brightness(1.18);transform:translateY(-2px)}
+    #healBtn:disabled{opacity:.55;cursor:default}
+    #classSplash{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:radial-gradient(circle at 50% 34%,rgba(30,52,79,.96),rgba(4,8,16,.985) 70%);color:#eefaff;padding:24px}
+    #classCard{width:min(520px,100%);padding:34px;border:1px solid rgba(116,218,255,.55);border-radius:18px;background:rgba(7,17,29,.94);box-shadow:0 24px 80px #000,0 0 42px rgba(65,190,255,.16);text-align:center}
+    #classCard h1{margin:0 0 8px;font-size:34px;letter-spacing:.08em} #classCard h2{margin:24px 0 8px;color:#9be8ff;font-size:26px}
+    #classCard p{margin:8px auto;max-width:420px;line-height:1.55;color:#cbdde7} #classCard .stats{margin:20px 0;padding:14px;border-radius:12px;background:rgba(71,154,194,.12);color:#dff7ff;font-weight:750;line-height:1.7}
+    .classChoices{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}
+    #selectWarrior,#selectDefender,#selectHealer{padding:15px 18px;border-radius:11px;color:#fff;font:900 14px system-ui;letter-spacing:.10em;cursor:pointer}
+    #selectWarrior{border:1px solid #78ddff;background:linear-gradient(#24759d,#0b3049)}
+    #selectDefender{border:1px solid #9db8ff;background:linear-gradient(#394f94,#172651)}
+    #selectHealer{border:1px solid #8fffc6;background:linear-gradient(#28785a,#103d31)}
+    #selectWarrior:hover,#selectDefender:hover,#selectHealer:hover{filter:brightness(1.18);transform:translateY(-2px)}
+    .classInfo{display:none;margin-top:14px;padding:12px;border-radius:12px;background:rgba(71,154,194,.10);color:#dff7ff;font-weight:700;line-height:1.55}
+    .classInfo.show{display:block}
+    #energyDisplay{margin:8px 0 2px;color:#ffe79a;font:900 14px system-ui;letter-spacing:.08em;text-shadow:0 2px 8px #000} #energyCountdown{margin-top:4px;color:#c7d8e6;font:700 11px system-ui;letter-spacing:.08em;text-shadow:0 2px 8px #000}
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="classSplash"><div id="classCard">
+    <h1>THE LAST STAND</h1>
+    <p>The bots can delay defeat, but they cannot win the war.</p>
+    <h2>CHOOSE YOUR CLASS</h2>
+    <p>Each class spends Energy to help the same global war.</p>
+    <div class="classChoices">
+      <button id="selectWarrior">⚔ WARRIOR</button>
+      <button id="selectDefender">🛡 DEFENDER</button>
+      <button id="selectHealer">✚ HEALER</button>
+    </div>
+    <div class="classInfo show" id="classSummary">⚔ Warrior damages the Bombardier Fleet.<br>🛡 Defender restores or overcharges Defense to 120%.<br>✚ Healer restores or overcharges Integrity to 120%.</div>
+    <div class="stats">5 Maximum Energy<br>+1 Energy every 4 hours<br>One class per session</div>
+  </div></div>
+  <div id="attackPanel"><div id="attackLabel">CHOOSE A CLASS</div><div id="energyDisplay">ENERGY 0 / 5</div><div id="energyCountdown">NEXT ENERGY IN --h --m</div><button id="attackBtn" disabled>ATTACK</button><button id="healBtn" disabled>HEAL CITY</button><div style="margin-top:8px;color:#d8e8ef;font:700 12px system-ui">⚔ Atlas ACTIVE<br>🛡 Vega ACTIVE<br>✚ Iris ACTIVE</div></div>
+  <div id="loading">AWAKENING THE LAST CITY...</div>
+  <div id="error">
+    <strong>base.png could not be loaded.</strong><br><br>
+    Keep <code>index.html</code> and <code>base.png</code> in the same folder, then refresh the page.<br>
+    The filename must be exactly <code>base.png</code>.
+  </div>
+
+  <script>
+    "use strict";
+    // Block direct access to main.html unless login.html/index.html stored a valid player payload.
+    let authenticatedPlayer=null;
+    try{
+      const storedPlayer=sessionStorage.getItem("lastStandPlayer");
+      if(storedPlayer){
+        const parsedPlayer=JSON.parse(storedPlayer);
+        if(parsedPlayer && parsedPlayer.id != null && typeof parsedPlayer.username === "string" && parsedPlayer.username.trim()){
+          authenticatedPlayer=parsedPlayer;
+        }
+      }
+    }catch(error){
+      sessionStorage.removeItem("lastStandPlayer");
+    }
+    if(!authenticatedPlayer){
+      window.location.replace("index.html");
+      throw new Error("Login required. Redirecting to index.html.");
+    }
+
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const loading = document.getElementById("loading");
+    const errorBox = document.getElementById("error");
+    const attackBtn=document.getElementById("attackBtn"), attackLabel=document.getElementById("attackLabel"), healBtn=document.getElementById("healBtn");
+    const classSplash=document.getElementById("classSplash"),selectWarrior=document.getElementById("selectWarrior"),selectDefender=document.getElementById("selectDefender"),selectHealer=document.getElementById("selectHealer"),energyDisplay=document.getElementById("energyDisplay"),energyCountdown=document.getElementById("energyCountdown");
+
+    let W = 0;
+    let H = 0;
+    let DPR = 1;
+    let distance = 0;
+    let groundOffset = 0;
+    let farOffset = 0;
+    let lastTime = performance.now();
+    let cityReady = false;
+
+    const city = new Image();
+    city.onload = () => {
+      cityReady = true;
+      loading.classList.add("hidden");
+      console.log("CITY LOADED", city.naturalWidth, city.naturalHeight);
+    };
+    city.onerror = () => {
+      loading.classList.add("hidden");
+      errorBox.style.display = "block";
+      console.error("CITY FAILED TO LOAD. Expected ./base.png beside index.html");
+    };
+    city.src = "./base.png";
+
+    const background = new Image();
+    let backgroundReady = false;
+    background.onload = () => {
+      backgroundReady = true;
+      console.log("BACKGROUND LOADED", background.naturalWidth, background.naturalHeight);
+    };
+    background.onerror = () => {
+      console.error("BACKGROUND FAILED TO LOAD. Expected ./background.png beside index.html");
+    };
+    background.src = "./background.png";
+
+    function resize() {
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = Math.floor(W * DPR);
+      canvas.height = Math.floor(H * DPR);
+      canvas.style.width = W + "px";
+      canvas.style.height = H + "px";
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    const smoke = Array.from({ length: 30 }, () => ({
+      x: (Math.random() - 0.5) * 170,
+      y: Math.random() * 150,
+      size: 8 + Math.random() * 20,
+      speed: 9 + Math.random() * 15,
+      drift: (Math.random() - 0.5) * 12,
+      alpha: .05 + Math.random() * .12
+    }));
+
+    const drones = Array.from({ length: 12 }, (_, i) => ({
+      angle: Math.random() * Math.PI * 2,
+      radius: 160 + Math.random() * 150,
+      speed: (i % 2 ? 1 : -1) * (.13 + Math.random() * .12),
+      height: 35 + Math.random() * 55,
+      size: 1.5 + Math.random() * 1.8
+    }));
+
+    const swarmGroups = [
+      { anchorX: .12, anchorY: .37, scale: 1.0, phase: 0 },
+      { anchorX: .84, anchorY: .30, scale: .75, phase: 2.2 }
+    ];
+
+    const debris = Array.from({ length: 80 }, () => ({ phase: Math.random()*6.28, speed: .6+Math.random()*1.8, height: 8+Math.random()*48, size: 1+Math.random()*3 }));
+    const impactRipples = Array.from({ length: 4 }, (_,i) => ({ phase: i/4 }));
+
+    const backgroundDust = Array.from({ length: 26 }, (_, i) => ({
+      y: .28 + Math.random() * .48,
+      width: 260 + Math.random() * 520,
+      height: 24 + Math.random() * 70,
+      speed: 4 + Math.random() * 10,
+      alpha: .018 + Math.random() * .035,
+      phase: Math.random() * 2000
+    }));
+
+    const ruinLights = [
+      [.105,.39], [.123,.44], [.674,.43], [.847,.235], [.875,.31],
+      [.905,.42], [.748,.515], [.267,.525], [.354,.58]
+    ];
+
+    const dustDevils = [
+      { x:.28, y:.57, scale:.75, phase:0 },
+      { x:.71, y:.54, scale:1.0, phase:2.1 }
+    ];
+
+    function drawBackgroundImage(time) {
+      if (!backgroundReady) {
+        drawSky(time);
+        drawMountainLayer(H * .64, "rgba(28,31,43,.65)", .18, 1.25);
+        drawMountainLayer(H * .70, "rgba(45,34,40,.90)", .42, .75);
+        return;
+      }
+
+      const imageAspect = background.naturalWidth / background.naturalHeight;
+      const screenAspect = W / H;
+      let sx = 0, sy = 0, sw = background.naturalWidth, sh = background.naturalHeight;
+      if (screenAspect > imageAspect) {
+        sh = sw / screenAspect;
+        sy = (background.naturalHeight - sh) * .34;
+      } else {
+        sw = sh * screenAspect;
+        sx = (background.naturalWidth - sw) * .5;
+      }
+
+      // Tiny cinematic drift rather than obvious scrolling.
+      const driftX = Math.sin(time * .000035) * background.naturalWidth * .008;
+      sx = Math.max(0, Math.min(background.naturalWidth - sw, sx + driftX));
+      ctx.drawImage(background, sx, sy, sw, sh, 0, 0, W, H);
+
+      // Warm atmospheric grade keeps the fortress integrated with the painting.
+      const grade = ctx.createLinearGradient(0, 0, 0, H);
+      grade.addColorStop(0, "rgba(72,31,16,.04)");
+      grade.addColorStop(.65, "rgba(245,137,55,.035)");
+      grade.addColorStop(1, "rgba(25,13,12,.16)");
+      ctx.fillStyle = grade;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    function drawBackgroundDust(time) {
+      ctx.save();
+      for (const d of backgroundDust) {
+        const span = W + d.width * 2;
+        const x = ((d.phase - time * d.speed * .01) % span + span) % span - d.width;
+        const y = H * d.y + Math.sin(time * .00035 + d.phase) * 8;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, d.width * .55);
+        g.addColorStop(0, `rgba(235,157,83,${d.alpha})`);
+        g.addColorStop(.7, `rgba(206,125,67,${d.alpha * .45})`);
+        g.addColorStop(1, "rgba(190,110,62,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.ellipse(x, y, d.width, d.height, -.05, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawDustDevils(time) {
+      ctx.save();
+      dustDevils.forEach((d, index) => {
+        const life = .5 + .5 * Math.sin(time * .00022 + d.phase);
+        const cx = W * d.x + Math.sin(time * .00015 + d.phase) * 65;
+        const baseY = H * d.y;
+        ctx.strokeStyle = `rgba(210,144,80,${.025 + life * .055})`;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 9; i++) {
+          const yy = baseY - i * 8 * d.scale;
+          const radius = (28 - i * 2.2) * d.scale;
+          ctx.beginPath();
+          ctx.ellipse(cx + Math.sin(time * .002 + i) * 5, yy, radius, 4 * d.scale, 0, 0, Math.PI * 1.55);
+          ctx.stroke();
+        }
+      });
+      ctx.restore();
+    }
+
+    function drawRuinActivity(time) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      ruinLights.forEach((point, i) => {
+        const flicker = Math.max(0, Math.sin(time * (.0011 + i * .00007) + i * 2.7));
+        if (flicker < .72) return;
+        const x = W * point[0], y = H * point[1];
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = i % 3 ? "#ffb05d" : "#63d9ff";
+        ctx.fillStyle = i % 3 ? `rgba(255,179,91,${flicker * .5})` : `rgba(100,220,255,${flicker * .55})`;
+        ctx.beginPath(); ctx.arc(x, y, 1.2 + flicker * 1.5, 0, Math.PI * 2); ctx.fill();
+      });
+
+      // Subtle pulse inside the crashed ship.
+      const pulse = .5 + .5 * Math.sin(time * .0012);
+      const px = W * .545, py = H * .355;
+      const glow = ctx.createRadialGradient(px, py, 0, px, py, 34 + pulse * 18);
+      glow.addColorStop(0, `rgba(92,205,255,${.06 + pulse * .07})`);
+      glow.addColorStop(1, "rgba(92,205,255,0)");
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(px, py, 55, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBackgroundHeatHaze(time) {
+      const top = H * .35, bottom = H * .69;
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 14; i++) {
+        const y = top + (i / 14) * (bottom - top);
+        ctx.strokeStyle = `rgba(255,211,158,${.009 + (i % 3) * .005})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = 0; x <= W; x += 15) {
+          const wave = Math.sin(x * .025 + time * .0024 + i * 1.3) * (2 + i * .08);
+          if (x === 0) ctx.moveTo(x, y + wave); else ctx.lineTo(x, y + wave);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawSky(time) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, H);
+      gradient.addColorStop(0, "#071225");
+      gradient.addColorStop(.43, "#29334a");
+      gradient.addColorStop(.72, "#a04f3d");
+      gradient.addColorStop(1, "#d98a50");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, W, H);
+
+      const sunX = W * .78;
+      const sunY = H * .24;
+      const sunR = Math.max(42, Math.min(W, H) * .075);
+      const glow = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, sunR * 2.5);
+      glow.addColorStop(0, "rgba(255,238,180,.95)");
+      glow.addColorStop(.25, "rgba(255,180,100,.45)");
+      glow.addColorStop(1, "rgba(255,130,80,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, sunR * 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(235,212,205,.08)";
+      for (let i = -1; i < 8; i++) {
+        const x = ((i * 320 - farOffset * .08) % (W + 550)) - 220;
+        const y = H * (.13 + (i % 3) * .055);
+        ctx.beginPath();
+        ctx.ellipse(x, y, 110, 22, 0, 0, Math.PI * 2);
+        ctx.ellipse(x + 90, y + 5, 85, 17, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawMountainLayer(baseY, color, speed, heightScale) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      const segment = 240;
+      const offset = -((farOffset * speed) % segment) - segment;
+      for (let x = offset, i = -1; x < W + segment; x += segment, i++) {
+        const peak = baseY - (70 + ((i * 47) % 95)) * heightScale;
+        ctx.lineTo(x, baseY);
+        ctx.lineTo(x + segment * .52, peak);
+        ctx.lineTo(x + segment, baseY);
+      }
+      ctx.lineTo(W, H);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawGround() {
+      const horizon = H * .78;
+      const g = ctx.createLinearGradient(0, horizon, 0, H);
+      g.addColorStop(0, "rgba(109,64,38,.74)");
+      g.addColorStop(1, "rgba(24,16,15,.96)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, horizon, W, H - horizon);
+
+      ctx.strokeStyle = "rgba(230,157,93,.18)";
+      ctx.lineWidth = 2;
+      for (let i = -5; i < 40; i++) {
+        const x = i * 86 - (groundOffset % 86);
+        ctx.beginPath();
+        ctx.moveTo(x, horizon);
+        ctx.lineTo(x + 85, H);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "rgba(18,14,14,.75)";
+      for (let i = -2; i < 14; i++) {
+        const x = i * 170 - ((groundOffset * 1.65) % 170);
+        const y = H * .88 + (i % 3) * 17;
+        ctx.beginPath();
+        ctx.ellipse(x, y, 28 + (i % 4) * 9, 8 + (i % 3) * 4, -.15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawTreadMarks(layout) {
+      const y0=H*.80, left=layout.x-layout.width*.65, right=layout.x+layout.width*.46;
+      const step=Math.max(34,layout.width*.045), scroll=(groundOffset*1.12)%step;
+      ctx.save(); ctx.strokeStyle="rgba(12,10,12,.40)"; ctx.lineWidth=Math.max(3,layout.width*.006); ctx.lineCap="round";
+      for(let band=0;band<4;band++){ const y=y0+band*19; for(let x=left-scroll;x<right;x+=step){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+step*.64,y+9);ctx.stroke();}}
+      ctx.restore();
+    }
+
+    function cityLayout(time) {
+      const maxWidth = Math.min(W * .656, 992);
+      const maxHeight = H * .544;
+      const aspect = city.naturalWidth / city.naturalHeight;
+      let width = maxWidth;
+      let height = width / aspect;
+      if (height > maxHeight) {
+        height = maxHeight;
+        width = height * aspect;
+      }
+      const bob = Math.sin(time * .0015) * 8 + Math.sin(time * .0035) * 2;
+      return {
+        width,
+        height,
+        x: W * .5 - width * .5,
+        y: H * .79 - height * .74 + bob,
+        cx: W * .5,
+        cy: H * .79 + bob
+      };
+    }
+
+    function drawShield(layout, time) {
+      const strength = cityStatus.defense / 100;
+      const rx = layout.width * .43;
+      const ry = layout.height * .57;
+      const pulse = 1 + Math.sin(time * .0023) * .012;
+
+      ctx.save();
+      ctx.translate(layout.cx, layout.y + layout.height * .56);
+      ctx.scale(pulse, pulse);
+
+      const shieldFill = ctx.createRadialGradient(0, 0, ry * .2, 0, 0, rx);
+      shieldFill.addColorStop(0, "rgba(80,185,255,0)");
+      shieldFill.addColorStop(.72, "rgba(80,185,255,.025)");
+      shieldFill.addColorStop(1, "rgba(90,205,255,.11)");
+      ctx.fillStyle = shieldFill;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx, ry, 0, Math.PI, Math.PI * 2);
+      ctx.lineTo(rx, 0);
+      ctx.lineTo(-rx, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.shadowBlur = 28;
+      ctx.shadowColor = "rgba(76,195,255,.9)";
+      ctx.strokeStyle = `rgba(${strength<.3?255:115},${strength<.3?85:220},255,${.12 + strength * .55})`;
+      ctx.lineWidth = Math.max(1.5, layout.width * (.0015 + strength * .0022));
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx, ry, 0, Math.PI, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(130,225,255,.12)";
+      ctx.lineWidth = 1;
+      for (let i = -3; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx * Math.cos(i * .13), ry, 0, Math.PI, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(0,0,rx,ry,0,Math.PI,Math.PI*2); ctx.clip();
+      ctx.globalCompositeOperation="screen";
+      for(let i=0;i<7;i++){
+        const by=-ry+((time*.055+i*ry*.44)%(ry*2.1));
+        const g=ctx.createLinearGradient(0,by-10,0,by+10);
+        g.addColorStop(0,"rgba(90,220,255,0)"); g.addColorStop(.5,"rgba(150,240,255,.15)"); g.addColorStop(1,"rgba(90,220,255,0)");
+        ctx.fillStyle=g; ctx.fillRect(-rx,by-10,rx*2,20);
+      }
+      ctx.restore();
+      ctx.restore();
+    }
+
+    function drawEngineGlow(layout, time) {
+      const points = [
+        [-.32, .78], [-.14, .84], [.15, .83], [.34, .77]
+      ];
+      for (const [px, py] of points) {
+        const x = layout.x + layout.width * (.5 + px);
+        const y = layout.y + layout.height * py;
+        const r = layout.width * (.03 + Math.sin(time * .006 + px * 10) * .008);
+        const glow = ctx.createRadialGradient(x, y, 0, x, y, r);
+        glow.addColorStop(0, "rgba(112,226,255,.8)");
+        glow.addColorStop(.35, "rgba(46,151,255,.32)");
+        glow.addColorStop(1, "rgba(32,112,255,0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+
+    function drawCrawlerDust(layout, time) {
+      const baseY = layout.y + layout.height * .86;
+      const startX = layout.x + layout.width * .04;
+      const dustWidth = layout.width * .92;
+      const scale = Math.max(.72, layout.width / 1100);
+
+      ctx.save();
+      ctx.globalCompositeOperation = "source-over";
+
+      for (let i = 0; i < 115; i++) {
+        const cycle = (time * .095 + i * 31.7) % (dustWidth + 190);
+        const travel = cycle - 80;
+        const x = startX + dustWidth - travel;
+        const age = Math.max(0, Math.min(1, travel / dustWidth));
+        const wave = Math.sin(i * 1.73 + time * .0014) * 7;
+        const y = baseY + wave + age * 18;
+        const size = (3.5 + age * 14 + (i % 4)) * scale;
+        const alpha = .18 * Math.sin(Math.PI * age);
+
+        if (x > startX - 130 && x < startX + dustWidth + 90 && alpha > 0) {
+          ctx.fillStyle = `rgba(218,169,105,${alpha})`;
+          ctx.beginPath();
+          ctx.ellipse(x, y, size * 1.7, size, -.12, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      const haze = ctx.createLinearGradient(startX, 0, startX + dustWidth, 0);
+      haze.addColorStop(0, "rgba(206,151,92,0)");
+      haze.addColorStop(.12, "rgba(206,151,92,.13)");
+      haze.addColorStop(.78, "rgba(206,151,92,.09)");
+      haze.addColorStop(1, "rgba(206,151,92,0)");
+      ctx.fillStyle = haze;
+      ctx.beginPath();
+      ctx.ellipse(layout.cx - layout.width * .06, baseY + 9, dustWidth * .55, 28 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawSandSpray(layout, time) {
+      const contactY = layout.y + layout.height * .85;
+      const startX = layout.x + layout.width * .08;
+      const sprayWidth = layout.width * .84;
+      const scale = Math.max(.72, layout.width / 1100);
+
+      ctx.save();
+      ctx.lineCap = "round";
+      for (let i = 0; i < 42; i++) {
+        const travel = (time * .24 + i * 47) % sprayWidth;
+        const x = startX + sprayWidth - travel;
+        const strength = .5 + .5 * Math.sin(i * 2.1 + time * .003);
+        const length = (9 + strength * 17) * scale;
+        const y = contactY + Math.sin(i * 1.35) * 7;
+
+        ctx.strokeStyle = `rgba(255,194,112,${.045 + strength * .09})`;
+        ctx.lineWidth = Math.max(1, 1.4 * scale);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - length * 1.8, y - length * .7);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawMassiveDustPlume(layout,time){
+      const baseY=layout.y+layout.height*.84, scale=Math.max(.7,layout.width/1100);
+      ctx.save();
+      for(let layer=0;layer<4;layer++) for(let i=0;i<44;i++){
+        const cycle=(time*(.035+layer*.012)+i*43+layer*77)%(layout.width*1.25);
+        const age=cycle/(layout.width*1.25), x=layout.x+layout.width*.96-cycle;
+        const y=baseY-layer*14-Math.sin(i*1.31+time*.0008)*14-age*62;
+        const rx=(24+age*76+layer*13)*scale, ry=(11+age*31+layer*7)*scale;
+        ctx.fillStyle=`rgba(192,143,91,${[.11,.08,.055,.035][layer]*(1-age*.65)})`;
+        ctx.beginPath();ctx.ellipse(x,y,rx,ry,-.12,0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+    }
+    function drawDebris(layout,time){
+      const baseY=layout.y+layout.height*.88,width=layout.width*.98;ctx.save();
+      debris.forEach((d,i)=>{const cycle=((time*.11*d.speed)+i*53)%(width+170),age=cycle/(width+170);const x=layout.x+width-cycle;const y=baseY-Math.sin(Math.PI*Math.min(1,age*1.35))*d.height+Math.sin(d.phase+time*.003)*4;ctx.fillStyle=`rgba(74,53,38,${Math.max(0,.4*(1-age))})`;ctx.beginPath();ctx.arc(x,y,d.size*(1+age),0,Math.PI*2);ctx.fill();});ctx.restore();
+    }
+    function drawImpactRipples(layout,time){
+      const y=layout.y+layout.height*.91,pts=[-.36,-.12,.16,.36];ctx.save();ctx.lineWidth=2;
+      pts.forEach((px,i)=>{const c=((time*.00032)+impactRipples[i].phase)%1,r=(12+c*105)*Math.max(.7,layout.width/1100);ctx.strokeStyle=`rgba(245,184,110,${.25*(1-c)})`;ctx.beginPath();ctx.ellipse(layout.cx+px*layout.width,y,r,r*.22,0,0,Math.PI*2);ctx.stroke();});ctx.restore();
+    }
+    function drawHeatHaze(layout,time){
+      const top=layout.y+layout.height*.68,h=layout.height*.28,left=layout.x+layout.width*.04,width=layout.width*.92;ctx.save();ctx.globalCompositeOperation="screen";ctx.lineWidth=1.4;
+      for(let i=0;i<20;i++){const y=top+i/20*h;ctx.strokeStyle=`rgba(135,205,230,${.018+(i%3)*.01})`;ctx.beginPath();for(let x=left;x<=left+width;x+=12){const wave=Math.sin(x*.032+time*.004+i)*(3+i*.12);x===left?ctx.moveTo(x,y+wave):ctx.lineTo(x,y+wave);}ctx.stroke();}ctx.restore();
+    }
+
+    function drawSmoke(layout, dt) {
+      ctx.save();
+      for (const p of smoke) {
+        p.y += p.speed * dt;
+        p.x += p.drift * dt * .15;
+        if (p.y > layout.height * .45) {
+          p.y = 0;
+          p.x = (Math.random() - .5) * layout.width * .17;
+        }
+        const x = layout.cx + p.x;
+        const y = layout.y + layout.height * .17 - p.y;
+        const size = p.size * (layout.width / 1000) * (1 + p.y / Math.max(1, layout.height));
+        ctx.fillStyle = `rgba(18,20,25,${Math.max(0, p.alpha * (1 - p.y / (layout.height * .5)))})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawDrones(layout, time, dt) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      for (const d of drones) {
+        d.angle += d.speed * dt;
+        const x = layout.cx + Math.cos(d.angle) * d.radius * (layout.width / 1100);
+        const y = layout.y + layout.height * .46 + Math.sin(d.angle) * d.height;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "#67dbff";
+        ctx.fillStyle = "#b9f1ff";
+        ctx.beginPath();
+        ctx.arc(x, y, d.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawSwarms(time) {
+      for (const group of swarmGroups) {
+        const gx = W * group.anchorX + Math.sin(time * .00025 + group.phase) * 45;
+        const gy = H * group.anchorY + Math.sin(time * .0009 + group.phase) * 12;
+        const count = Math.max(30, Math.floor(75 * group.scale));
+        ctx.fillStyle = "rgba(8,10,14,.75)";
+        for (let i = 0; i < count; i++) {
+          const a = i * 2.399 + time * .00035;
+          const radius = Math.sqrt(i) * 8.5 * group.scale;
+          const x = gx + Math.cos(a + Math.sin(time * .001 + i) * .3) * radius;
+          const y = gy + Math.sin(a * .72 + time * .0012) * radius * .32;
+          const s = 1.4 + (i % 4) * .45;
+          ctx.fillRect(x, y, s, s);
+        }
+      }
+    }
+
+
+    const balanceModel={
+      activePlayers:1,fleetPercent:100,day:1,dayMs:24*60*60*1000,nextDayAt:0,
+      dailyBombardierDefenseDamage:22,dailyBombardierIntegrityDamage:55,
+      atlasFleetDamage:.04,vegaDefenseRepair:2,irisIntegrityRepair:1,
+      stateKey:"lastStandWarriorDailyV1"
+    };
+    const playerState={className:null,energy:5,maxEnergy:5,energyRegenMs:4*60*60*1000,lastEnergyAt:Date.now(),stateKey:"lastStandWarriorPlayerV1"};
+    function scaledAttackPercent(){return .05;}
+    function enemyPressureMultiplier(){return 1;}
+    function refreshEnergy(now=Date.now()){
+      if(!playerState.className)return;
+      if(playerState.energy<playerState.maxEnergy){
+        const gains=Math.floor((now-playerState.lastEnergyAt)/playerState.energyRegenMs);
+        if(gains>0){playerState.energy=Math.min(playerState.maxEnergy,playerState.energy+gains);playerState.lastEnergyAt+=gains*playerState.energyRegenMs;savePlayerState();}
+      }else playerState.lastEnergyAt=now;
+      energyDisplay.textContent=`ENERGY ${playerState.energy} / ${playerState.maxEnergy}`;
+      if(playerState.energy>=playerState.maxEnergy){
+        energyCountdown.textContent="ENERGY FULL";
+      }else{
+        const remaining=Math.max(0,playerState.energyRegenMs-(now-playerState.lastEnergyAt));
+        const hours=Math.floor(remaining/3600000);
+        const minutes=Math.floor((remaining%3600000)/60000);
+        energyCountdown.textContent=`NEXT ENERGY IN ${hours}h ${minutes}m`;
+      }
+      if(!attackFX.active&&!healFX.active&&!fortifyFX.active)attackBtn.disabled=!playerState.className||playerState.energy<=0;
+      healBtn.disabled=true;
+    }
+    function savePlayerState(){}
+    function loadPlayerState(){
+      playerState.className=null;
+      playerState.energy=playerState.maxEnergy;
+      playerState.lastEnergyAt=Date.now();
+      classSplash.style.display="grid";
+      energyDisplay.textContent=`ENERGY ${playerState.energy} / ${playerState.maxEnergy}`;
+      attackBtn.disabled=true;
+      attackBtn.textContent="ATTACK";
+      healBtn.disabled=true;
+      attackLabel.textContent="CHOOSE A CLASS";
+    }
+    function selectClass(className){
+      playerState.className=className;
+      playerState.energy=playerState.maxEnergy;
+      playerState.lastEnergyAt=Date.now();
+      savePlayerState();
+      classSplash.style.display="none";
+      const defender=className==="Defender";
+      const healer=className==="Healer";
+      attackBtn.textContent=defender?"FORTIFY":healer?"RESTORE":"ATTACK";
+      attackLabel.textContent=defender?"DEFENDER READY":healer?"HEALER READY":"WARRIOR READY";
+      refreshEnergy();
+    }
+    selectWarrior.addEventListener("click",()=>selectClass("Warrior"));
+    selectDefender.addEventListener("click",()=>selectClass("Defender"));
+    selectHealer.addEventListener("click",()=>selectClass("Healer"));
+    
+    const bombardierRaid={
+      ships:[],
+      bombs:[],
+      trails:[],
+      nextRaid:performance.now()+900,
+      active:false,
+      started:0,
+      duration:3200,
+      wave:0,
+      impactFlashes:[],
+      shockwaves:[],
+      fragments:[],
+      aaTracers:[],
+      airExplosions:[],
+      wreckage:[],
+      groundImpacts:[],
+      distant:Array.from({length:18},(_,i)=>({
+        lane:i%6,
+        x:Math.random(),
+        y:.10+Math.random()*.18,
+        speed:.004+Math.random()*.010,
+        size:2.5+Math.random()*4.5,
+        phase:Math.random()*6.28
+      }))
+    };
+
+    function startBombardierRaid(time){
+      if(bombardierRaid.active)return;
+      bombardierRaid.active=true;
+      bombardierRaid.started=time;
+      bombardierRaid.wave++;
+      bombardierRaid.ships=[];
+      bombardierRaid.bombs=[];
+      bombardierRaid.trails=[];
+      const count=5+Math.floor(Math.random()*3);
+      for(let i=0;i<count;i++){
+        const lane=(i-(count-1)/2);
+        bombardierRaid.ships.push({
+          x:W*.5+lane*W*.11+(Math.random()-.5)*45,
+          startY:-100-Math.random()*240,
+          speed:.22+Math.random()*.075,
+          sway:18+Math.random()*25,
+          phase:Math.random()*6.28,
+          size:18+Math.random()*15,
+          dropped:false,
+          escaped:false,
+          destroyed:false,
+          destroyAt:1250+Math.random()*700
+        });
+      }
+      attackLabel.textContent="BOMBARDIERS INBOUND";
+    }
+
+    function updateBombardierRaid(time){
+      if(!bombardierRaid.active){
+        if(time>=bombardierRaid.nextRaid)startBombardierRaid(time);
+        return;
+      }
+      const elapsed=time-bombardierRaid.started;
+      bombardierRaid.ships.forEach((ship,i)=>{
+        if(ship.destroyed)return;
+        const y=ship.startY+elapsed*ship.speed;
+        const x=ship.x+Math.sin(time*.002+ship.phase)*ship.sway;
+        if(!ship.dropped&&y>H*.19+i%2*35){
+          ship.dropped=true;
+          const layout=cityLayout(time);
+          const shieldHit=Math.random()<.72;
+          const target=shieldHit
+            ? {x:layout.cx+(Math.random()-.5)*layout.width*.68,y:layout.y+layout.height*(.10+Math.random()*.34)}
+            : {x:layout.x+layout.width*(.18+Math.random()*.64),y:layout.y+layout.height*(.34+Math.random()*.42)};
+          bombardierRaid.bombs.push({born:time,start:{x,y:y+18},end:target,duration:480+Math.random()*220,hit:false,trail:[],shieldHit});
+        }
+        if(ship.dropped&&elapsed>=ship.destroyAt){
+          ship.destroyed=true;
+          const layout=cityLayout(time);
+          for(let t=0;t<6;t++)bombardierRaid.aaTracers.push({born:time-t*45,start:{x:layout.cx+(Math.random()-.5)*layout.width*.35,y:layout.y+layout.height*.42},end:{x,y},life:300+Math.random()*160});
+          bombardierRaid.airExplosions.push({x,y,born:time,scale:.8+ship.size/28});
+          for(let w=0;w<5;w++)bombardierRaid.wreckage.push({x:x+(Math.random()-.5)*30,y:y+(Math.random()-.5)*20,vx:(Math.random()-.5)*85,vy:45+Math.random()*85,rot:Math.random()*6.28,spin:(Math.random()-.5)*.012,born:time,life:1500+Math.random()*900,size:4+Math.random()*8,hit:false});
+        }
+      });
+      const allDestroyed=bombardierRaid.ships.length>0&&bombardierRaid.ships.every(ship=>ship.destroyed);
+      if(allDestroyed||elapsed>bombardierRaid.duration){
+        bombardierRaid.active=false;
+        bombardierRaid.nextRaid=time+900+Math.random()*900;
+        if(!attackFX.active&&!healFX.active)attackLabel.textContent="NEW WAVE APPROACHING";
+      }
+    }
+
+    function drawBombardierShip(x,y,size,time,phase){
+      ctx.save();ctx.translate(x,y);ctx.rotate(Math.sin(time*.0015+phase)*.08);
+      ctx.shadowBlur=18;ctx.shadowColor="rgba(255,67,37,.72)";
+      ctx.fillStyle="rgba(14,17,23,.95)";
+      ctx.beginPath();ctx.moveTo(0,size*1.25);ctx.lineTo(size*.95,-size*.55);ctx.lineTo(size*.32,-size*.4);ctx.lineTo(0,-size);ctx.lineTo(-size*.32,-size*.4);ctx.lineTo(-size*.95,-size*.55);ctx.closePath();ctx.fill();
+      ctx.strokeStyle="rgba(126,142,155,.6)";ctx.lineWidth=1.4;ctx.stroke();
+      ctx.fillStyle="#ff5a35";ctx.shadowBlur=16;ctx.shadowColor="#ff482d";
+      ctx.beginPath();ctx.arc(-size*.34,-size*.36,size*.12,0,Math.PI*2);ctx.arc(size*.34,-size*.36,size*.12,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle="rgba(255,82,45,.34)";ctx.lineWidth=Math.max(2,size*.11);
+      ctx.beginPath();ctx.moveTo(-size*.34,-size*.42);ctx.lineTo(-size*.34,-size*1.25);ctx.moveTo(size*.34,-size*.42);ctx.lineTo(size*.34,-size*1.25);ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawDistantBombardiers(time){
+      ctx.save();
+      bombardierRaid.distant.forEach((d,i)=>{
+        d.x-=d.speed*.016;
+        if(d.x<-.08){d.x=1.08;d.y=.08+Math.random()*.22;d.size=2.5+Math.random()*4.5}
+        const x=W*d.x+Math.sin(time*.00035+d.phase)*18;
+        const y=H*d.y+Math.sin(time*.0007+d.phase)*5;
+        ctx.save();ctx.translate(x,y);ctx.rotate(-.08+Math.sin(time*.0004+d.phase)*.05);
+        ctx.fillStyle="rgba(18,19,24,.58)";
+        ctx.beginPath();ctx.moveTo(0,d.size*1.2);ctx.lineTo(d.size*1.7,-d.size*.55);ctx.lineTo(0,-d.size*.35);ctx.lineTo(-d.size*1.7,-d.size*.55);ctx.closePath();ctx.fill();
+        ctx.fillStyle="rgba(255,72,40,.42)";ctx.fillRect(-d.size*.18,-d.size*.45,d.size*.36,d.size*.55);
+        ctx.restore();
+      });
+      ctx.restore();
+    }
+
+    function drawBombardierRaid(time){
+      updateBombardierRaid(time);
+      if(!bombardierRaid.active&&bombardierRaid.bombs.length===0)return;
+      const elapsed=time-bombardierRaid.started;
+      ctx.save();
+      bombardierRaid.ships.forEach(ship=>{
+        if(ship.destroyed)return;
+        const y=ship.startY+elapsed*ship.speed;
+        if(y>H+140)return;
+        const x=ship.x+Math.sin(time*.002+ship.phase)*ship.sway;
+        drawBombardierShip(x,y,ship.size,time,ship.phase);
+      });
+
+      bombardierRaid.bombs.forEach(b=>{
+        const p=Math.min(1,(time-b.born)/b.duration);
+        const bend={x:(b.start.x+b.end.x)/2,y:b.start.y+H*.18};
+        const pos=qpoint(b.start,bend,b.end,p);
+        b.trail.push({x:pos.x,y:pos.y});if(b.trail.length>14)b.trail.shift();
+        for(let i=1;i<b.trail.length;i++){
+          ctx.strokeStyle=`rgba(255,95,42,${i/b.trail.length*.26})`;ctx.lineWidth=1+i/b.trail.length*4;
+          ctx.beginPath();ctx.moveTo(b.trail[i-1].x,b.trail[i-1].y);ctx.lineTo(b.trail[i].x,b.trail[i].y);ctx.stroke();
+        }
+        ctx.globalCompositeOperation="screen";ctx.shadowBlur=18;ctx.shadowColor="#ff4e2f";ctx.fillStyle="#ffd1a0";ctx.beginPath();ctx.arc(pos.x,pos.y,5,0,Math.PI*2);ctx.fill();ctx.globalCompositeOperation="source-over";
+        if(p>=1&&!b.hit){
+          b.hit=true;
+          burst(b.end.x,b.end.y,b.shieldHit?1.55:1.20);
+          attackFX.shake=Math.max(attackFX.shake,b.shieldHit?14:11);
+          attackFX.flash=Math.max(attackFX.flash,b.shieldHit?.26:.14);
+          const layout=cityLayout(time);
+          cityStatus.shieldRipples.push({born:time,x:layout.cx,y:layout.y+layout.height*.56,positive:false,impactX:b.end.x,impactY:b.end.y});
+          // Visual impact only. Daily cycle controls the numeric damage.
+          bombardierRaid.shockwaves.push({x:b.end.x,y:b.end.y,born:time,shieldHit:b.shieldHit});
+          for(let k=0;k<(b.shieldHit?38:24);k++){
+            const a=Math.random()*Math.PI*2,speed=55+Math.random()*185;
+            bombardierRaid.fragments.push({x:b.end.x,y:b.end.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,born:time,life:520+Math.random()*620,color:b.shieldHit?"blue":"orange"});
+          }
+        }
+      });
+      // City anti-air tracer fire.
+      bombardierRaid.aaTracers.forEach(tr=>{
+        const p=(time-tr.born)/tr.life;if(p<0||p>1)return;
+        const x=tr.start.x+(tr.end.x-tr.start.x)*p,y=tr.start.y+(tr.end.y-tr.start.y)*p;
+        ctx.save();ctx.globalCompositeOperation="screen";ctx.strokeStyle=`rgba(105,225,255,${.85*(1-p)})`;ctx.lineWidth=2.5;ctx.shadowBlur=12;ctx.shadowColor="#62dfff";ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-(tr.end.x-tr.start.x)*.08,y-(tr.end.y-tr.start.y)*.08);ctx.stroke();ctx.restore();
+      });
+      bombardierRaid.aaTracers=bombardierRaid.aaTracers.filter(tr=>time-tr.born<tr.life+80);
+
+      // Mid-air bomber explosions.
+      bombardierRaid.airExplosions.forEach(ex=>{
+        const p=(time-ex.born)/780;if(p<0||p>1)return;const r=(18+p*82)*ex.scale;
+        ctx.save();ctx.globalCompositeOperation="screen";const g=ctx.createRadialGradient(ex.x,ex.y,0,ex.x,ex.y,r);g.addColorStop(0,`rgba(255,255,220,${1-p})`);g.addColorStop(.22,`rgba(255,190,55,${.95*(1-p)})`);g.addColorStop(.55,`rgba(255,58,18,${.75*(1-p)})`);g.addColorStop(1,"rgba(20,10,8,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(ex.x,ex.y,r,0,Math.PI*2);ctx.fill();ctx.restore();
+      });
+      bombardierRaid.airExplosions=bombardierRaid.airExplosions.filter(ex=>time-ex.born<820);
+
+      // Burning wreckage falling into the wasteland.
+      const groundY=H*.84;
+      bombardierRaid.wreckage.forEach(w=>{
+        const age=time-w.born,t=age/1000;if(age<0||age>w.life)return;
+        w.x+=w.vx*.016;w.y+=w.vy*.016;w.vy+=120*.016;w.rot+=w.spin*16;
+        ctx.save();ctx.translate(w.x,w.y);ctx.rotate(w.rot);ctx.fillStyle="rgba(28,24,24,.95)";ctx.fillRect(-w.size,-w.size*.45,w.size*2,w.size*.9);ctx.globalCompositeOperation="screen";ctx.strokeStyle="rgba(255,91,35,.75)";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-w.vx*.12,-18-Math.abs(w.vy)*.07);ctx.stroke();ctx.restore();
+        if(!w.hit&&w.y>=groundY){w.hit=true;bombardierRaid.groundImpacts.push({x:w.x,y:groundY,born:time,scale:.45+Math.random()*.4})}
+      });
+      bombardierRaid.wreckage=bombardierRaid.wreckage.filter(w=>!w.hit&&time-w.born<w.life);
+
+      // Small desert impacts from wreckage.
+      bombardierRaid.groundImpacts.forEach(gp=>{
+        const p=(time-gp.born)/620;if(p<0||p>1)return;const r=(8+p*38)*gp.scale;
+        ctx.save();ctx.globalCompositeOperation="screen";const g=ctx.createRadialGradient(gp.x,gp.y,0,gp.x,gp.y,r);g.addColorStop(0,`rgba(255,230,150,${.8*(1-p)})`);g.addColorStop(.35,`rgba(255,92,30,${.55*(1-p)})`);g.addColorStop(1,"rgba(185,100,45,0)");ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(gp.x,gp.y,r,r*.45,0,0,Math.PI*2);ctx.fill();ctx.restore();
+      });
+      bombardierRaid.groundImpacts=bombardierRaid.groundImpacts.filter(gp=>time-gp.born<680);
+
+      bombardierRaid.bombs=bombardierRaid.bombs.filter(b=>time-b.born<b.duration+750);
+
+      bombardierRaid.shockwaves.forEach(sw=>{
+        const p=(time-sw.born)/850;if(p<0||p>1)return;
+        const radius=18+p*(sw.shieldHit?125:85);
+        ctx.save();ctx.globalCompositeOperation="screen";
+        ctx.strokeStyle=sw.shieldHit?`rgba(105,225,255,${.86*(1-p)})`:`rgba(255,150,65,${.76*(1-p)})`;
+        ctx.lineWidth=8*(1-p)+1;
+        ctx.beginPath();ctx.ellipse(sw.x,sw.y,radius,radius*(sw.shieldHit?.58:.72),0,0,Math.PI*2);ctx.stroke();
+        const g=ctx.createRadialGradient(sw.x,sw.y,0,sw.x,sw.y,radius*.85);
+        g.addColorStop(0,sw.shieldHit?`rgba(220,255,255,${.72*(1-p)})`:`rgba(255,235,180,${.7*(1-p)})`);
+        g.addColorStop(.28,sw.shieldHit?`rgba(45,190,255,${.38*(1-p)})`:`rgba(255,85,25,${.4*(1-p)})`);
+        g.addColorStop(1,"rgba(0,0,0,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(sw.x,sw.y,radius*.9,0,Math.PI*2);ctx.fill();ctx.restore();
+      });
+      bombardierRaid.shockwaves=bombardierRaid.shockwaves.filter(sw=>time-sw.born<900);
+
+      bombardierRaid.fragments.forEach(f=>{
+        const age=time-f.born;if(age<0||age>f.life)return;const t=age/1000,p=age/f.life;
+        const x=f.x+f.vx*t,y=f.y+f.vy*t+110*t*t;
+        ctx.save();ctx.globalCompositeOperation="screen";ctx.fillStyle=f.color==="blue"?`rgba(130,235,255,${1-p})`:`rgba(255,165,65,${1-p})`;
+        ctx.shadowBlur=9;ctx.shadowColor=f.color==="blue"?"#4bddff":"#ff762e";ctx.beginPath();ctx.arc(x,y,2.8*(1-p)+.6,0,Math.PI*2);ctx.fill();ctx.restore();
+      });
+      bombardierRaid.fragments=bombardierRaid.fragments.filter(f=>time-f.born<f.life);
+      ctx.restore();
+    }
+
+    const cityStatus={
+      defense:100,
+      integrity:100,
+      nextEvent:performance.now()+3500,
+      event:null,
+      repairDrones:[],
+      sparks:[],
+      fires:[],
+      shieldRipples:[]
+    };
+
+    function clampStatus(value){return Math.max(0,Math.min(100,value))}
+    function clampOvercharge(value){return Math.max(0,Math.min(120,value))}
+
+    const healFX={active:false,start:0,duration:2600,target:null,waves:[],beams:[]};
+
+    function performHeal(){
+      refreshEnergy();
+      if(playerState.className!=="Healer"||playerState.energy<=0||healFX.active||attackFX.active||fortifyFX.active||!cityReady)return;
+      const now=performance.now(),layout=cityLayout(now);
+      playerState.energy--;
+      playerState.lastEnergyAt=Date.now();
+      healFX.active=true;healFX.start=now;
+      healFX.target={x:layout.x+layout.width*(.30+Math.random()*.40),y:layout.y+layout.height*(.32+Math.random()*.28)};
+      healFX.waves=[];healFX.beams=[];
+      const amount=addDisplayedIntegrity(2);
+      for(let i=0;i<18;i++) cityStatus.repairDrones.push({born:now,delay:i*55,start:{x:layout.cx+(Math.random()-.5)*80,y:layout.y+layout.height*.50},end:{x:healFX.target.x+(Math.random()-.5)*85,y:healFX.target.y+(Math.random()-.5)*55},phase:Math.random()*6.28});
+      for(let i=0;i<85;i++) cityStatus.sparks.push({born:now+550+Math.random()*900,x:healFX.target.x,y:healFX.target.y,vx:(Math.random()-.5)*130,vy:-45-Math.random()*120,life:650+Math.random()*650,color:"heal"});
+      for(let i=0;i<5;i++) healFX.waves.push({born:now+i*180});
+      cityStatus.event={type:"integrityRepair",title:"HEALER RESTORATION",amount,born:now,point:healFX.target};
+      attackLabel.textContent=amount>0?`+${amount.toFixed(amount%1?1:0)} ${getDisplayedStatus().integrity>100?"VITALITY":"INTEGRITY"}`:"VITALITY OVERCHARGE FULL";
+      attackBtn.textContent="RESTORING";
+      attackBtn.disabled=true;
+      savePlayerState();refreshEnergy();
+    }
+    healBtn.addEventListener("click",performHeal);
+
+
+    function triggerStatusEvent(time){
+      if(!cityReady)return;
+      const layout=cityLayout(time);
+      const choices=["defenseRepair","defenseDamage","integrityRepair","integrityDamage"];
+      const type=choices[Math.floor(Math.random()*choices.length)];
+      const positive=type.includes("Repair");
+      const amount=positive?2+Math.floor(Math.random()*5):2+Math.floor(Math.random()*5);
+      const point={
+        x:layout.x+layout.width*(.24+Math.random()*.52),
+        y:layout.y+layout.height*(.28+Math.random()*.35)
+      };
+
+      if(type==="defenseRepair"){
+        cityStatus.defense=clampStatus(cityStatus.defense+amount);
+        cityStatus.shieldRipples.push({born:time,x:layout.cx,y:layout.y+layout.height*.56,positive:true});
+      }else if(type==="defenseDamage"){
+        cityStatus.defense=clampStatus(cityStatus.defense-amount);
+        cityStatus.shieldRipples.push({born:time,x:layout.cx,y:layout.y+layout.height*.56,positive:false,impactX:point.x,impactY:point.y-layout.height*.18});
+        burst(point.x,point.y-layout.height*.20,.65);
+        attackFX.shake=Math.max(attackFX.shake,7);
+      }else if(type==="integrityRepair"){
+        cityStatus.integrity=clampStatus(cityStatus.integrity+amount);
+        for(let i=0;i<7;i++)cityStatus.repairDrones.push({born:time,delay:i*85,start:{x:layout.cx,y:layout.y+layout.height*.48},end:{x:point.x+(Math.random()-.5)*55,y:point.y+(Math.random()-.5)*35},phase:Math.random()*6.28});
+        for(let i=0;i<34;i++)cityStatus.sparks.push({born:time+520+Math.random()*600,x:point.x,y:point.y,vx:(Math.random()-.5)*85,vy:-35-Math.random()*90,life:550+Math.random()*450,color:"repair"});
+      }else{
+        cityStatus.integrity=clampStatus(cityStatus.integrity-amount);
+        burst(point.x,point.y,.9);
+        attackFX.shake=Math.max(attackFX.shake,9);
+        cityStatus.fires.push({x:point.x,y:point.y,born:time,life:9000+Math.random()*5000});
+        for(let i=0;i<26;i++)cityStatus.sparks.push({born:time,x:point.x,y:point.y,vx:(Math.random()-.5)*130,vy:-40-Math.random()*110,life:500+Math.random()*500,color:"damage"});
+      }
+
+      const titles={defenseRepair:"SHIELD REINFORCED",defenseDamage:"SHIELD IMPACT",integrityRepair:"SECTOR REPAIRED",integrityDamage:"SECTOR DAMAGED"};
+      cityStatus.event={type,title:titles[type],amount:positive?amount:-amount,born:time,point};
+      cityStatus.nextEvent=time+4200+Math.random()*3500;
+    }
+
+    const fortifyFX={active:false,start:0,duration:1250,amount:2};
+    function performFortify(){
+      refreshEnergy();
+      if(playerState.className!=="Defender"||playerState.energy<=0||attackFX.active||healFX.active||fortifyFX.active||!cityReady)return;
+      playerState.energy--;
+      playerState.lastEnergyAt=Date.now();
+      const now=performance.now(),layout=cityLayout(now);
+      const restored=addDisplayedDefense(fortifyFX.amount);
+      fortifyFX.active=true;fortifyFX.start=now;
+      cityStatus.shieldRipples.push({born:now,x:layout.cx,y:layout.y+layout.height*.56,positive:true});
+      cityStatus.shieldRipples.push({born:now+180,x:layout.cx,y:layout.y+layout.height*.56,positive:true});
+      cityStatus.event={type:"defenseRepair",title:"DEFENDER FORTIFICATION",amount:restored,born:now,point:{x:layout.cx,y:layout.y+layout.height*.25}};
+      attackLabel.textContent=restored>0?`+${restored.toFixed(restored%1?1:0)} ${getDisplayedStatus().defense>100?"OVERCHARGE":"DEFENSE"}`:"DEFENSE OVERCHARGE FULL";
+      attackBtn.textContent="FORTIFYING";
+      attackBtn.disabled=true;
+      savePlayerState();refreshEnergy();
+    }
+    function updateFortify(time){
+      if(!fortifyFX.active)return;
+      if(time-fortifyFX.start>=fortifyFX.duration){
+        fortifyFX.active=false;
+        attackBtn.textContent="FORTIFY";
+        attackLabel.textContent="DEFENDER READY";
+        refreshEnergy();
+      }
+    }
+    const attackFX={active:false,type:"",start:0,duration:0,side:1,damage:327,missiles:[],drones:[],bursts:[],flash:0,shake:0};
+    const qpoint=(a,b,c,t)=>{const u=1-t;return{x:u*u*a.x+2*u*t*b.x+t*t*c.x,y:u*u*a.y+2*u*t*b.y+t*t*c.y}};
+    const attackTarget=()=>({x:attackFX.side>0?W*.84:W*.14,y:attackFX.side>0?H*.30:H*.37});
+    function burst(x,y,scale=1){attackFX.bursts.push({x,y,scale,born:performance.now()})}
+    function performAttack(){
+      if(playerState.className==="Defender"){performFortify();return;}
+      if(playerState.className==="Healer"){performHeal();return;}
+      refreshEnergy();
+      if(!playerState.className||playerState.energy<=0||attackFX.active||healFX.active||!cityReady)return;
+      playerState.energy--;playerState.lastEnergyAt=Date.now();savePlayerState();refreshEnergy();
+      const now=performance.now(),layout=cityLayout(now),beamLength=Math.min(W,H)*.62;
+      attackFX.active=true;attackFX.type="tripleLaser";attackFX.start=now;attackFX.duration=1650;
+      attackFX.side=1;attackFX.missiles=[];attackFX.drones=[];attackFX.bursts=[];attackFX.flash=0;attackFX.shake=0;
+      const left={x:layout.cx-layout.width*.23,y:layout.y+layout.height*.35};
+      const middle={x:layout.cx,y:layout.y+layout.height*.29};
+      const right={x:layout.cx+layout.width*.23,y:layout.y+layout.height*.35};
+      attackFX.lasers=[
+        {start:left,end:{x:left.x-beamLength*.70,y:left.y-beamLength*.70}},
+        {start:middle,end:{x:middle.x,y:middle.y-beamLength}},
+        {start:right,end:{x:right.x+beamLength*.70,y:right.y-beamLength*.70}}
+      ];
+      attackLabel.textContent="TRIPLE LASER STRIKE";
+      balanceModel.fleetPercent=Math.max(0,balanceModel.fleetPercent-scaledAttackPercent());
+      saveDailyState();attackBtn.disabled=true;attackBtn.textContent="FIRING";
+    }
+    attackBtn.addEventListener("click",performAttack);
+    function drawBurst(e,time){const p=(time-e.born)/560;if(p<0||p>1)return;const r=(12+p*66)*e.scale;ctx.save();ctx.globalCompositeOperation="screen";const g=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,r);g.addColorStop(0,`rgba(255,255,235,${1-p})`);g.addColorStop(.25,`rgba(255,205,80,${.9*(1-p)})`);g.addColorStop(.58,`rgba(255,75,20,${.65*(1-p)})`);g.addColorStop(1,"rgba(255,45,10,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(e.x,e.y,r,0,Math.PI*2);ctx.fill();ctx.restore()}
+    function combatText(t,p,title){if(p<.55)return;const k=Math.min(1,(p-.55)/.45);ctx.save();ctx.textAlign="center";ctx.shadowBlur=15;ctx.shadowColor="#000";ctx.fillStyle=`rgba(255,234,170,${1-k*.85})`;ctx.font=`900 ${Math.max(25,W*.027)}px system-ui`;ctx.fillText(`-${attackFX.damage}`,t.x,t.y-62-k*35);ctx.fillStyle=`rgba(223,246,255,${1-k})`;ctx.font=`800 ${Math.max(11,W*.011)}px system-ui`;ctx.fillText(title,t.x,t.y-35-k*35);ctx.restore()}
+    function drawAttackEffects(time){
+      if(!attackFX.active)return;const elapsed=time-attackFX.start,p=Math.min(1,elapsed/attackFX.duration),t=attackTarget();
+      if(attackFX.type==="tripleLaser"){
+        const chargeEnd=.44,fireEnd=.84;
+        if(p<chargeEnd){
+          const c=p/chargeEnd;
+          ctx.save();ctx.globalCompositeOperation="screen";
+          attackFX.lasers.forEach((l,i)=>{
+            const pulse=.78+.22*Math.sin(time*.026+i*2.1),r=12+c*34+pulse*6;
+            for(let q=0;q<7;q++){
+              const a=time*.004+q*Math.PI*2/7+i*.7,orbit=(1-c)*48+8;
+              const px=l.start.x+Math.cos(a)*orbit,py=l.start.y+Math.sin(a)*orbit;
+              ctx.strokeStyle=`rgba(95,220,255,${.22+.45*c})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(l.start.x,l.start.y);ctx.stroke();
+            }
+            const g=ctx.createRadialGradient(l.start.x,l.start.y,0,l.start.x,l.start.y,r);
+            g.addColorStop(0,`rgba(255,255,255,${.80+.20*c})`);g.addColorStop(.22,`rgba(105,235,255,${.72+.20*c})`);g.addColorStop(.62,`rgba(30,125,255,${.3+.25*c})`);g.addColorStop(1,"rgba(15,70,255,0)");
+            ctx.fillStyle=g;ctx.beginPath();ctx.arc(l.start.x,l.start.y,r,0,Math.PI*2);ctx.fill();
+            ctx.strokeStyle=`rgba(185,250,255,${.35+.55*c})`;ctx.lineWidth=2+c*3;ctx.beginPath();ctx.arc(l.start.x,l.start.y,r*.72,time*.008+i,time*.008+i+Math.PI*1.45);ctx.stroke();
+          });
+          ctx.restore();
+          combatText({x:W*.5,y:H*.28},Math.min(1,c),"CHARGING LASER ARRAY");
+        }else if(p<fireEnd){
+          const k=Math.min(1,(p-chargeEnd)/(fireEnd-chargeEnd));
+          ctx.save();ctx.globalCompositeOperation="screen";ctx.lineCap="round";
+          attackFX.lasers.forEach((l,i)=>{
+            const ex=l.start.x+(l.end.x-l.start.x)*k,ey=l.start.y+(l.end.y-l.start.y)*k;
+            ctx.shadowBlur=38;ctx.shadowColor="#41dfff";ctx.strokeStyle="rgba(30,125,255,.44)";ctx.lineWidth=26;ctx.beginPath();ctx.moveTo(l.start.x,l.start.y);ctx.lineTo(ex,ey);ctx.stroke();
+            ctx.strokeStyle="rgba(75,215,255,.78)";ctx.lineWidth=14;ctx.beginPath();ctx.moveTo(l.start.x,l.start.y);ctx.lineTo(ex,ey);ctx.stroke();
+            ctx.strokeStyle="rgba(245,255,255,1)";ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(l.start.x,l.start.y);ctx.lineTo(ex,ey);ctx.stroke();
+            if(k>.94&&!l.hit){l.hit=true;burst(l.end.x,l.end.y,1.15);attackFX.shake=14;attackFX.flash=.3;}
+          });ctx.restore();
+          combatText({x:W*.5,y:H*.24},k,"TRIPLE LASER STRIKE");
+        }
+      }
+      if(attackFX.type==="missile"){
+        attackFX.missiles.forEach(m=>{const k=(elapsed-m.delay)/m.dur;if(k<0)return;if(k>=1){if(!m.hit){m.hit=true;burst(m.c.x,m.c.y,.7+Math.random()*.5);attackFX.shake=7}return}const pos=qpoint(m.a,m.b,m.c,k);m.trail.push(pos);if(m.trail.length>18)m.trail.shift();ctx.save();ctx.lineCap="round";for(let j=1;j<m.trail.length;j++){ctx.strokeStyle=`rgba(235,230,215,${j/m.trail.length*.25})`;ctx.lineWidth=1+j/m.trail.length*3;ctx.beginPath();ctx.moveTo(m.trail[j-1].x,m.trail[j-1].y);ctx.lineTo(m.trail[j].x,m.trail[j].y);ctx.stroke()}ctx.globalCompositeOperation="screen";ctx.shadowBlur=14;ctx.shadowColor="#ff9b3c";ctx.fillStyle="#fff2bd";ctx.beginPath();ctx.arc(pos.x,pos.y,3.5,0,Math.PI*2);ctx.fill();ctx.restore()});combatText(t,p,"MISSILE BARRAGE")
+      }
+      if(attackFX.type==="railgun"){
+        const l=cityLayout(time),a={x:l.cx+attackFX.side*l.width*.18,y:l.y+l.height*.34};
+        if(p<.42){const k=p/.42,r=18+k*86;ctx.save();ctx.globalCompositeOperation="screen";const g=ctx.createRadialGradient(a.x,a.y,0,a.x,a.y,r);g.addColorStop(0,`rgba(240,255,255,${.45+k*.5})`);g.addColorStop(.3,`rgba(83,220,255,${.35+k*.4})`);g.addColorStop(1,"rgba(40,120,255,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(a.x,a.y,r,0,Math.PI*2);ctx.fill();ctx.restore()}
+        else if(p<.72){const k=(p-.42)/.30;ctx.save();ctx.globalCompositeOperation="screen";ctx.shadowBlur=30;ctx.shadowColor="#65e7ff";ctx.strokeStyle=`rgba(230,255,255,${1-k*.35})`;ctx.lineWidth=18-k*8;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(t.x,t.y);ctx.stroke();ctx.strokeStyle="rgba(48,184,255,.8)";ctx.lineWidth=34-k*16;ctx.stroke();ctx.restore();if(!attackFX.railHit&&p>.48){attackFX.railHit=true;burst(t.x,t.y,1.8);attackFX.flash=.5;attackFX.shake=13;attackLabel.textContent="RAILGUN STRIKE"}}combatText(t,p,"RAILGUN STRIKE")
+      }
+      if(attackFX.type==="drone"){
+        attackFX.drones.forEach((d,i)=>{const k=(elapsed-d.delay)/d.dur;if(k<0)return;if(k>=1){if(!d.hit){d.hit=true;burst(d.c.x,d.c.y,.35+Math.random()*.3);attackFX.shake=3}return}const b={x:(d.a.x+d.c.x)/2,y:Math.min(d.a.y,d.c.y)-75+Math.sin(d.phase)*35},pos=qpoint(d.a,b,d.c,k);ctx.save();ctx.globalCompositeOperation="screen";ctx.shadowBlur=10;ctx.shadowColor="#5ae6ff";ctx.fillStyle="#bff8ff";ctx.beginPath();ctx.arc(pos.x,pos.y,2.7,0,Math.PI*2);ctx.fill();ctx.strokeStyle="rgba(73,214,255,.35)";ctx.beginPath();ctx.moveTo(pos.x-attackFX.side*12,pos.y+Math.sin(time*.01+i)*3);ctx.lineTo(pos.x,pos.y);ctx.stroke();ctx.restore()});combatText(t,p,"DRONE ASSAULT")
+      }
+      attackFX.bursts.forEach(e=>drawBurst(e,time));attackFX.bursts=attackFX.bursts.filter(e=>time-e.born<620);
+      if(attackFX.flash>0){ctx.fillStyle=`rgba(190,240,255,${attackFX.flash})`;ctx.fillRect(0,0,W,H);attackFX.flash*=.82}
+      if(p>=1){attackFX.active=false;attackBtn.textContent=playerState.className==="Defender"?"FORTIFY":playerState.className==="Healer"?"RESTORE":"ATTACK";attackLabel.textContent=playerState.className==="Defender"?"DEFENDER READY":playerState.className==="Healer"?"HEALER READY":"WARRIOR READY";refreshEnergy()}
+    }
+
+    function drawStatusEffects(time,layout){
+      ctx.save();
+      ctx.globalCompositeOperation="screen";
+
+      cityStatus.shieldRipples.forEach(r=>{
+        const p=(time-r.born)/900;
+        if(p<0||p>1)return;
+        const rx=layout.width*(.18+p*.34),ry=layout.height*(.18+p*.40);
+        ctx.strokeStyle=r.positive?`rgba(95,225,255,${.65*(1-p)})`:`rgba(255,95,70,${.7*(1-p)})`;
+        ctx.lineWidth=5*(1-p)+1;
+        ctx.beginPath();ctx.ellipse(r.x,r.y,rx,ry,0,Math.PI,Math.PI*2);ctx.stroke();
+        if(!r.positive&&r.impactX){const g=ctx.createRadialGradient(r.impactX,r.impactY,0,r.impactX,r.impactY,55*(1+p));g.addColorStop(0,`rgba(255,245,205,${.65*(1-p)})`);g.addColorStop(1,"rgba(255,70,30,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(r.impactX,r.impactY,65*(1+p),0,Math.PI*2);ctx.fill()}
+      });
+      cityStatus.shieldRipples=cityStatus.shieldRipples.filter(r=>time-r.born<950);
+
+      cityStatus.repairDrones.forEach((d,i)=>{
+        const p=(time-d.born-d.delay)/1150;if(p<0||p>1)return;
+        const bend={x:(d.start.x+d.end.x)/2,y:Math.min(d.start.y,d.end.y)-90+Math.sin(d.phase)*28};
+        const pos=qpoint(d.start,bend,d.end,Math.min(1,p));
+        ctx.shadowBlur=13;ctx.shadowColor="#73ebff";ctx.fillStyle="#d5fbff";ctx.beginPath();ctx.arc(pos.x,pos.y,3.2,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle="rgba(93,226,255,.45)";ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(pos.x-12,pos.y+Math.sin(time*.012+i)*3);ctx.lineTo(pos.x,pos.y);ctx.stroke();
+      });
+      cityStatus.repairDrones=cityStatus.repairDrones.filter(d=>time-d.born-d.delay<1250);
+
+      cityStatus.sparks.forEach(sp=>{
+        const age=time-sp.born;if(age<0||age>sp.life)return;const p=age/sp.life;
+        const x=sp.x+sp.vx*(age/1000),y=sp.y+sp.vy*(age/1000)+150*(age/1000)*(age/1000);
+        ctx.fillStyle=sp.color==="heal"?`rgba(105,255,184,${1-p})`:sp.color==="repair"?`rgba(105,235,255,${1-p})`:`rgba(255,170,55,${1-p})`;
+        ctx.shadowBlur=8;ctx.shadowColor=sp.color==="heal"?"#58ffb5":sp.color==="repair"?"#62e7ff":"#ff8a28";ctx.fillRect(x,y,2.4,2.4);
+      });
+      cityStatus.sparks=cityStatus.sparks.filter(sp=>time-sp.born<sp.life);
+
+      cityStatus.fires.forEach(f=>{
+        const age=time-f.born;if(age<0||age>f.life)return;const fade=Math.min(1,age/400)*(1-Math.max(0,(age-f.life+1400)/1400));
+        for(let i=0;i<5;i++){const x=f.x+Math.sin(time*.009+i*2)*9,y=f.y-i*7-Math.abs(Math.sin(time*.012+i))*10;const g=ctx.createRadialGradient(x,y,0,x,y,14+i*2);g.addColorStop(0,`rgba(255,240,160,${.5*fade})`);g.addColorStop(.45,`rgba(255,92,25,${.38*fade})`);g.addColorStop(1,"rgba(255,40,10,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,16+i*2,0,Math.PI*2);ctx.fill()}
+      });
+      cityStatus.fires=cityStatus.fires.filter(f=>time-f.born<f.life);
+      ctx.restore();
+
+      if(cityStatus.event){const age=time-cityStatus.event.born;if(age<2200){const p=age/2200,e=cityStatus.event;ctx.save();ctx.textAlign="center";ctx.shadowBlur=15;ctx.shadowColor="#000";ctx.fillStyle=e.amount>0?`rgba(145,240,255,${1-p})`:`rgba(255,150,105,${1-p})`;ctx.font=`900 ${Math.max(20,W*.021)}px system-ui`;ctx.fillText(`${e.amount>0?"+":""}${e.amount} ${e.type.startsWith("defense")?"DEFENSE":"INTEGRITY"}`,layout.cx,layout.y+layout.height*.18-p*42);ctx.font=`800 ${Math.max(11,W*.010)}px system-ui`;ctx.fillText(e.title,layout.cx,layout.y+layout.height*.22-p*42);ctx.restore()}else cityStatus.event=null}
+    }
+
+    function drawHealingAnimation(time,layout){
+      if(!healFX.active)return;
+      const elapsed=time-healFX.start,p=Math.min(1,elapsed/healFX.duration),t=healFX.target;
+      ctx.save();ctx.globalCompositeOperation="screen";
+      // Vertical restorative beam
+      const beamAlpha=Math.sin(Math.PI*Math.min(1,p*1.25))*.34;
+      const beam=ctx.createLinearGradient(t.x-55,0,t.x+55,0);beam.addColorStop(0,"rgba(80,255,180,0)");beam.addColorStop(.5,`rgba(120,255,205,${beamAlpha})`);beam.addColorStop(1,"rgba(80,255,180,0)");
+      ctx.fillStyle=beam;ctx.fillRect(t.x-65,Math.max(0,t.y-layout.height*.55),130,layout.height*.82);
+      // Expanding healing rings
+      healFX.waves.forEach(w=>{const q=(time-w.born)/1100;if(q<0||q>1)return;ctx.strokeStyle=`rgba(105,255,190,${.7*(1-q)})`;ctx.lineWidth=5*(1-q)+1;ctx.beginPath();ctx.ellipse(t.x,t.y,25+q*150,10+q*55,0,0,Math.PI*2);ctx.stroke()});
+      // Converging energy motes
+      for(let i=0;i<28;i++){const a=i/28*Math.PI*2+time*.0015,r=(150*(1-p*.75))+(i%4)*9,x=t.x+Math.cos(a)*r,y=t.y+Math.sin(a)*r*.42;ctx.fillStyle=`rgba(145,255,210,${.18+.45*(1-p)})`;ctx.beginPath();ctx.arc(x,y,2.2+(i%3),0,Math.PI*2);ctx.fill()}
+      // Repair cross hologram
+      const crossAlpha=Math.sin(Math.PI*p);ctx.fillStyle=`rgba(205,255,230,${crossAlpha*.7})`;ctx.fillRect(t.x-5,t.y-34,10,68);ctx.fillRect(t.x-34,t.y-5,68,10);
+      ctx.restore();
+      if(p>=1){healFX.active=false;healBtn.disabled=true;attackBtn.textContent="RESTORE";attackLabel.textContent="HEALER READY";refreshEnergy()}
+    }
+
+    function drawFleetBar(){
+      const width=Math.min(520,W*.46),height=14,x=W/2-width/2,y=24;
+      ctx.save();ctx.textAlign="center";ctx.shadowBlur=14;ctx.shadowColor="#000";
+      ctx.fillStyle="rgba(255,242,235,.95)";ctx.font=`900 ${Math.max(14,Math.min(20,W*.015))}px system-ui`;ctx.fillText("BOMBARDIER FLEET",W/2,y);
+      ctx.fillStyle="rgba(10,8,12,.78)";ctx.fillRect(x,y+12,width,height);
+      const g=ctx.createLinearGradient(x,0,x+width,0);g.addColorStop(0,"#6f101d");g.addColorStop(1,"#ff5b43");ctx.fillStyle=g;ctx.fillRect(x,y+12,width*(balanceModel.fleetPercent/100),height);
+      ctx.strokeStyle="rgba(255,255,255,.32)";ctx.lineWidth=1.5;ctx.strokeRect(x,y+12,width,height);
+      ctx.fillStyle="#fff5ed";ctx.font=`900 ${Math.max(12,Math.min(16,W*.012))}px system-ui`;ctx.fillText(`${balanceModel.fleetPercent.toFixed(1)}%`,W/2,y+43);
+      const remaining=Math.max(0,balanceModel.nextDayAt-Date.now()),hours=Math.floor(remaining/3600000),minutes=Math.floor((remaining%3600000)/60000);
+      ctx.fillStyle="rgba(255,235,225,.72)";ctx.font=`700 ${Math.max(10,Math.min(12,W*.009))}px system-ui`;ctx.fillText(`NEXT WAR CYCLE ${hours}h ${minutes}m`,W/2,y+60);
+      ctx.restore();
+    }
+
+    function drawStatusBars(){
+      const panelW=Math.min(320,W*.34),barH=10,x=W-panelW-28,y=58;
+      const displayed=getDisplayedStatus();
+      const displayedDefense=displayed.defense;
+      const displayedIntegrity=displayed.integrity;
+      const drawBar=(label,value,yy,c1,c2,boostColor)=>{ctx.save();ctx.textAlign="left";ctx.shadowBlur=10;ctx.shadowColor="#000";ctx.fillStyle="rgba(235,248,255,.92)";ctx.font=`800 ${Math.max(11,Math.min(14,W*.012))}px system-ui`;ctx.fillText(label,x,yy);ctx.textAlign="right";ctx.fillStyle=value>100?boostColor:"rgba(235,248,255,.92)";ctx.fillText(`${Math.round(value)}%`,x+panelW,yy);ctx.fillStyle="rgba(5,15,24,.68)";ctx.fillRect(x,yy+8,panelW,barH);const base=Math.min(100,value);const g=ctx.createLinearGradient(x,0,x+panelW,0);g.addColorStop(0,c1);g.addColorStop(1,c2);ctx.fillStyle=g;ctx.fillRect(x,yy+8,panelW*(base/100),barH);if(value>100){const over=Math.min(20,value-100);ctx.fillStyle=boostColor;ctx.shadowBlur=14;ctx.shadowColor=boostColor;ctx.fillRect(x,yy+8,panelW*(over/20),Math.max(3,barH*.34));ctx.shadowBlur=0;}ctx.strokeStyle="rgba(255,255,255,.24)";ctx.strokeRect(x,yy+8,panelW,barH);ctx.restore()};
+      drawBar("DEFENSE",displayedDefense,y,"#247cba","#72e4ff","#d9fbff");
+      drawBar("CITY INTEGRITY",displayedIntegrity,y+43,"#b94234","#ff9d62","#8dffbf");
+    }
+
+    function drawHud() {
+      const pad = Math.max(18, Math.min(W, H) * .028);
+      ctx.save();
+      ctx.shadowBlur = 13;
+      ctx.shadowColor = "rgba(0,0,0,.9)";
+      ctx.fillStyle = "#f3fbff";
+      ctx.font = `800 ${Math.max(20, Math.min(34, W * .027))}px system-ui`;
+      ctx.fillText("THE LAST STAND", pad, pad + 28);
+      ctx.font = `600 ${Math.max(13, Math.min(18, W * .015))}px system-ui`;
+      ctx.fillStyle = "rgba(225,242,250,.9)";
+      ctx.fillText(`DAY ${balanceModel.day}  •  ${(distance/1000).toFixed(1)}km / 1000km`, pad, pad + 58);
+
+      const barW = Math.min(360, W * .42);
+      const barH = 8;
+      const barY = pad + 75;
+      ctx.fillStyle = "rgba(255,255,255,.14)";
+      ctx.fillRect(pad, barY, barW, barH);
+      ctx.fillStyle = "#63d8ff";
+      ctx.fillRect(pad, barY, barW * Math.min(1, distance / 1000000), barH);
+
+      ctx.textAlign = "right";
+      ctx.fillStyle = "rgba(235,246,255,.85)";
+      ctx.font = `700 ${Math.max(12, Math.min(16, W * .013))}px system-ui`;
+      ctx.fillText("HAVEN  →", W - pad, pad + 26);
+      ctx.restore();
+    }
+
+    function saveDailyState(){}
+    function resolveDailyWarCycle(){
+      balanceModel.day++;balanceModel.fleetPercent=clampStatus(balanceModel.fleetPercent-balanceModel.atlasFleetDamage);
+      const netDefenseDamage=Math.max(0,balanceModel.dailyBombardierDefenseDamage-balanceModel.vegaDefenseRepair),before=Math.max(0,cityStatus.defense);
+      cityStatus.defense=clampOvercharge(before-netDefenseDamage);const overflow=Math.max(0,netDefenseDamage-before);
+      if(cityStatus.defense<=0)cityStatus.integrity=clampOvercharge(cityStatus.integrity-balanceModel.dailyBombardierIntegrityDamage-overflow+balanceModel.irisIntegrityRepair);
+      else cityStatus.integrity=clampOvercharge(cityStatus.integrity+balanceModel.irisIntegrityRepair);
+      balanceModel.nextDayAt+=balanceModel.dayMs;saveDailyState();
+    }
+    function loadDailyState(){
+      balanceModel.day=1;
+      balanceModel.fleetPercent=100;
+      balanceModel.nextDayAt=Date.now()+balanceModel.dayMs;
+      cityStatus.defense=100;
+      cityStatus.integrity=100;
+    }
+    function getCycleProgress(){
+      return Math.max(0,Math.min(1,1-((balanceModel.nextDayAt-Date.now())/balanceModel.dayMs)));
+    }
+    function getProjectedCycleEnd(){
+      const defenseLoss=Math.max(0,balanceModel.dailyBombardierDefenseDamage-balanceModel.vegaDefenseRepair);
+      const defenseBefore=Math.max(0,cityStatus.defense);
+      const defenseAfter=Math.max(0,defenseBefore-defenseLoss);
+      const overflow=Math.max(0,defenseLoss-defenseBefore);
+      let integrityAfter=cityStatus.integrity;
+      if(defenseAfter<=0){
+        integrityAfter=cityStatus.integrity-balanceModel.dailyBombardierIntegrityDamage-overflow+balanceModel.irisIntegrityRepair;
+      }else{
+        integrityAfter=cityStatus.integrity+balanceModel.irisIntegrityRepair;
+      }
+      return {
+        defense:Math.max(0,Math.min(120,defenseAfter)),
+        integrity:Math.max(0,Math.min(120,integrityAfter))
+      };
+    }
+    function getDisplayedStatus(){
+      const progress=getCycleProgress();
+      const projected=getProjectedCycleEnd();
+      return {
+        defense:Math.max(0,Math.min(120,cityStatus.defense+(projected.defense-cityStatus.defense)*progress)),
+        integrity:Math.max(0,Math.min(120,cityStatus.integrity+(projected.integrity-cityStatus.integrity)*progress))
+      };
+    }
+    function addDisplayedDefense(amount){
+      const shown=getDisplayedStatus().defense;
+      const restored=Math.max(0,Math.min(amount,120-shown));
+      cityStatus.defense+=restored;
+      return restored;
+    }
+    function addDisplayedIntegrity(amount){
+      const shown=getDisplayedStatus().integrity;
+      const restored=Math.max(0,Math.min(amount,120-shown));
+      cityStatus.integrity+=restored;
+      return restored;
+    }
+
+    function update(dt) {
+      if(Date.now()>=balanceModel.nextDayAt)resolveDailyWarCycle();
+      refreshEnergy();
+      groundOffset += 220 * dt;
+      farOffset += 30 * dt;
+      distance = Math.min(1000000, distance + 14 * dt);
+    }
+    function render(time, dt) {
+      ctx.clearRect(0, 0, W, H);
+      ctx.save();
+      if(attackFX.shake>.15){ctx.translate((Math.random()-.5)*attackFX.shake,(Math.random()-.5)*attackFX.shake);attackFX.shake*=.86}
+      drawBackgroundImage(time);
+      drawBackgroundHeatHaze(time);
+      drawBackgroundDust(time);
+      drawDustDevils(time);
+      drawRuinActivity(time);
+      drawGround();
+      drawDistantBombardiers(time);
+      drawSwarms(time);
+
+      if (cityReady) {
+        const layout = cityLayout(time);
+        drawTreadMarks(layout);
+        drawImpactRipples(layout,time);
+        drawMassiveDustPlume(layout,time);
+        drawCrawlerDust(layout,time);
+        drawShield(layout,time);
+        drawEngineGlow(layout,time);
+        ctx.drawImage(city,layout.x,layout.y,layout.width,layout.height);
+        drawHeatHaze(layout,time);
+        drawSandSpray(layout,time);
+        drawDebris(layout,time);
+        drawSmoke(layout,dt);
+        drawDrones(layout,time,dt);
+        drawStatusEffects(time,layout);
+        drawHealingAnimation(time,layout);
+      }
+      ctx.restore();
+      drawBombardierRaid(time);
+      drawAttackEffects(time);
+      updateFortify(time);
+      drawHud();
+      drawFleetBar();
+      drawStatusBars();
+    }
+
+    function loop(now) {
+      const dt = Math.min((now - lastTime) / 1000, .033);
+      lastTime = now;
+      update(dt);
+      render(now, dt);
+      requestAnimationFrame(loop);
+    }
+
+    loadDailyState();
+    loadPlayerState();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
