@@ -1,8 +1,8 @@
 import { getDatabase } from "@netlify/database";
 import type { Config } from "@netlify/functions";
 
-const DEFENSE_DAMAGE_PER_CYCLE = 8;
-const INTEGRITY_DAMAGE_PER_CYCLE = 20;
+const DEFENSE_DAMAGE_PER_CYCLE = 6;
+const INTEGRITY_DAMAGE_PER_CYCLE = 12;
 const CYCLE_HOURS = 24;
 const MAX_CATCH_UP_CYCLES = 30;
 
