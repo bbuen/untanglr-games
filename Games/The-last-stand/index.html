@@ -73,12 +73,30 @@
     #loginBtn{width:100%;margin-top:11px;padding:14px;border:1px solid #78ddff;border-radius:11px;color:#fff;background:linear-gradient(#24759d,#0b3049);font:900 15px system-ui;letter-spacing:.12em;cursor:pointer}
     #loginBtn:disabled{opacity:.55} #loginMessage{min-height:20px;margin-top:12px;color:#ffb08f;font:800 12px system-ui}
     #playerBadge{position:fixed;left:22px;bottom:22px;z-index:21;display:none;padding:9px 12px;border:1px solid rgba(130,224,255,.32);border-radius:10px;color:#dff7ff;background:rgba(5,14,25,.82);font:800 11px system-ui;letter-spacing:.07em}
+
+    #logoutBtn {
+      position: fixed;
+      left: 22px;
+      bottom: 68px;
+      z-index: 30;
+      display: none;
+      padding: 9px 13px;
+      border: 1px solid rgba(255,130,130,.70);
+      border-radius: 9px;
+      color: #fff;
+      background: linear-gradient(#74343c,#38141b);
+      font: 800 11px system-ui;
+      letter-spacing: .08em;
+      cursor: pointer;
+    }
+    #logoutBtn:hover { filter: brightness(1.18); }
 </style>
 </head>
 <body>
   
   <div id="loginSplash"><div id="loginCard"><h1>ENTER THE LAST STAND</h1><p>A new callsign creates a player. An existing callsign requires the correct PIN.</p><input id="usernameInput" class="loginField" maxlength="24" autocomplete="username" placeholder="CALLSIGN"><input id="pinInput" class="loginField" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="4-DIGIT PIN"><button id="loginBtn" type="button">JOIN THE WAR</button><div id="loginMessage"></div></div></div>
   <div id="playerBadge"></div>
+  <button id="logoutBtn" type="button">LOG OUT</button>
   <canvas id="game"></canvas>
   <div id="classSplash"><div id="classCard">
     <h1>THE LAST STAND</h1>
@@ -104,6 +122,7 @@
   <script>
     "use strict";
     const loginSplash=document.getElementById("loginSplash"),usernameInput=document.getElementById("usernameInput"),pinInput=document.getElementById("pinInput"),loginBtn=document.getElementById("loginBtn"),loginMessage=document.getElementById("loginMessage"),playerBadge=document.getElementById("playerBadge");
+    const logoutBtn=document.getElementById("logoutBtn");
     let onlinePlayer=null;
 
     const canvas = document.getElementById("game");
@@ -681,7 +700,7 @@
       playerState.className=c==="warrior"?"Warrior":c==="defender"?"Defender":c==="healer"?"Healer":null;
       sessionStorage.setItem("lastStandPlayer",JSON.stringify(player)); sessionStorage.setItem("lastStandUsername",player.username);
       playerBadge.style.display="block"; playerBadge.textContent=`CALLSIGN ${String(player.username).toUpperCase()} • ${created?"NEW PLAYER":"ONLINE"}`;
-      loginSplash.style.display="none";
+      loginSplash.style.display="none"; logoutBtn.style.display="block";
       if(playerState.className){classSplash.style.display="none";attackBtn.textContent=playerState.className==="Defender"?"FORTIFY":playerState.className==="Healer"?"RESTORE":"ATTACK";attackLabel.textContent=playerState.className.toUpperCase()+" READY";}
       else{classSplash.style.display="grid";attackLabel.textContent="CHOOSE A CLASS";}
       refreshEnergy();
@@ -701,6 +720,26 @@
     loginBtn.addEventListener("click",loginPlayer);
     pinInput.addEventListener("keydown",event=>{if(event.key==="Enter")loginPlayer();});
     usernameInput.value=sessionStorage.getItem("lastStandUsername")||"";
+    logoutBtn.addEventListener("click",()=>{
+      sessionStorage.removeItem("lastStandPlayer");
+      sessionStorage.removeItem("lastStandUsername");
+      onlinePlayer=null;
+      playerState.className=null;
+      playerState.energy=0;
+      playerState.lastEnergyAt=Date.now();
+      playerBadge.style.display="none";
+      logoutBtn.style.display="none";
+      classSplash.style.display="none";
+      loginSplash.style.display="grid";
+      usernameInput.value="";
+      pinInput.value="";
+      loginMessage.textContent="";
+      energyDisplay.textContent="ENERGY -- / 5";
+      energyCountdown.textContent="LOGIN REQUIRED";
+      attackBtn.disabled=true;
+      attackBtn.textContent="ATTACK";
+      attackLabel.textContent="AWAITING PLAYER";
+    });
    async function selectClass(className) {
     if (!onlinePlayer) {
         return;
@@ -988,26 +1027,56 @@
     function clampStatus(value){return Math.max(0,Math.min(100,value))}
     function clampOvercharge(value){return Math.max(0,Math.min(120,value))}
 
+    function applyGlobalWarState(war){
+      if(!war)return;
+      balanceModel.day=Number(war.day)||1;
+      balanceModel.fleetPercent=Number(war.fleetPercent ?? war.fleet_percent);
+      cityStatus.defense=Number(war.defense);
+      cityStatus.integrity=Number(war.integrity);
+      const cycleValue=war.nextCycleAt ?? war.next_cycle_at;
+      const cycleTime=new Date(cycleValue).getTime();
+      balanceModel.nextDayAt=Number.isFinite(cycleTime)?cycleTime:Date.now()+balanceModel.dayMs;
+    }
+    async function submitGlobalWarAction(action){
+      if(!onlinePlayer)throw new Error("Login required.");
+      const response=await fetch("/api/war/action",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({playerId:onlinePlayer.id,action})
+      });
+      const type=response.headers.get("content-type")||"";
+      if(!type.includes("application/json"))throw new Error(`War server returned ${response.status} instead of JSON.`);
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||"War action failed.");
+      onlinePlayer=data.player;
+      playerState.energy=Number(data.player.energy);
+      const energyTime=new Date(data.player.last_energy_at).getTime();
+      playerState.lastEnergyAt=Number.isFinite(energyTime)?energyTime:Date.now();
+      sessionStorage.setItem("lastStandPlayer",JSON.stringify(onlinePlayer));
+      applyGlobalWarState(data.war);
+      refreshEnergy();
+      return data;
+    }
     const healFX={active:false,start:0,duration:2600,target:null,waves:[],beams:[]};
 
-    function performHeal(){
+    async function performHeal(){
       refreshEnergy();
       if(playerState.className!=="Healer"||playerState.energy<=0||healFX.active||attackFX.active||fortifyFX.active||!cityReady)return;
+      attackBtn.disabled=true;attackBtn.textContent="CONNECTING";attackLabel.textContent="CONTACTING COMMAND";
+      const beforeIntegrity=cityStatus.integrity;
+      try{await submitGlobalWarAction("restore");}
+      catch(error){alert(error.message||"Unable to restore the city.");attackBtn.textContent="RESTORE";attackLabel.textContent="HEALER READY";refreshEnergy();return;}
+      const amount=Math.max(0,cityStatus.integrity-beforeIntegrity);
       const now=performance.now(),layout=cityLayout(now);
-      playerState.energy--;
-      playerState.lastEnergyAt=Date.now();
       healFX.active=true;healFX.start=now;
       healFX.target={x:layout.x+layout.width*(.30+Math.random()*.40),y:layout.y+layout.height*(.32+Math.random()*.28)};
       healFX.waves=[];healFX.beams=[];
-      const amount=addDisplayedIntegrity(2);
-      for(let i=0;i<18;i++) cityStatus.repairDrones.push({born:now,delay:i*55,start:{x:layout.cx+(Math.random()-.5)*80,y:layout.y+layout.height*.50},end:{x:healFX.target.x+(Math.random()-.5)*85,y:healFX.target.y+(Math.random()-.5)*55},phase:Math.random()*6.28});
-      for(let i=0;i<85;i++) cityStatus.sparks.push({born:now+550+Math.random()*900,x:healFX.target.x,y:healFX.target.y,vx:(Math.random()-.5)*130,vy:-45-Math.random()*120,life:650+Math.random()*650,color:"heal"});
-      for(let i=0;i<5;i++) healFX.waves.push({born:now+i*180});
+      for(let i=0;i<18;i++)cityStatus.repairDrones.push({born:now,delay:i*55,start:{x:layout.cx+(Math.random()-.5)*80,y:layout.y+layout.height*.50},end:{x:healFX.target.x+(Math.random()-.5)*85,y:healFX.target.y+(Math.random()-.5)*55},phase:Math.random()*6.28});
+      for(let i=0;i<85;i++)cityStatus.sparks.push({born:now+550+Math.random()*900,x:healFX.target.x,y:healFX.target.y,vx:(Math.random()-.5)*130,vy:-45-Math.random()*120,life:650+Math.random()*650,color:"heal"});
+      for(let i=0;i<5;i++)healFX.waves.push({born:now+i*180});
       cityStatus.event={type:"integrityRepair",title:"HEALER RESTORATION",amount,born:now,point:healFX.target};
-      attackLabel.textContent=amount>0?`+${amount.toFixed(amount%1?1:0)} ${getDisplayedStatus().integrity>100?"VITALITY":"INTEGRITY"}`:"VITALITY OVERCHARGE FULL";
-      attackBtn.textContent="RESTORING";
-      attackBtn.disabled=true;
-      savePlayerState();refreshEnergy();
+      attackLabel.textContent=amount>0?`+${amount.toFixed(amount%1?1:0)} ${cityStatus.integrity>100?"VITALITY":"INTEGRITY"}`:"VITALITY OVERCHARGE FULL";
+      attackBtn.textContent="RESTORING";attackBtn.disabled=true;refreshEnergy();
     }
     healBtn.addEventListener("click",performHeal);
 
@@ -1050,21 +1119,21 @@
     }
 
     const fortifyFX={active:false,start:0,duration:1250,amount:2};
-    function performFortify(){
+    async function performFortify(){
       refreshEnergy();
       if(playerState.className!=="Defender"||playerState.energy<=0||attackFX.active||healFX.active||fortifyFX.active||!cityReady)return;
-      playerState.energy--;
-      playerState.lastEnergyAt=Date.now();
+      attackBtn.disabled=true;attackBtn.textContent="CONNECTING";attackLabel.textContent="CONTACTING COMMAND";
+      const beforeDefense=cityStatus.defense;
+      try{await submitGlobalWarAction("fortify");}
+      catch(error){alert(error.message||"Unable to fortify the city.");attackBtn.textContent="FORTIFY";attackLabel.textContent="DEFENDER READY";refreshEnergy();return;}
+      const restored=Math.max(0,cityStatus.defense-beforeDefense);
       const now=performance.now(),layout=cityLayout(now);
-      const restored=addDisplayedDefense(fortifyFX.amount);
       fortifyFX.active=true;fortifyFX.start=now;
       cityStatus.shieldRipples.push({born:now,x:layout.cx,y:layout.y+layout.height*.56,positive:true});
       cityStatus.shieldRipples.push({born:now+180,x:layout.cx,y:layout.y+layout.height*.56,positive:true});
       cityStatus.event={type:"defenseRepair",title:"DEFENDER FORTIFICATION",amount:restored,born:now,point:{x:layout.cx,y:layout.y+layout.height*.25}};
-      attackLabel.textContent=restored>0?`+${restored.toFixed(restored%1?1:0)} ${getDisplayedStatus().defense>100?"OVERCHARGE":"DEFENSE"}`:"DEFENSE OVERCHARGE FULL";
-      attackBtn.textContent="FORTIFYING";
-      attackBtn.disabled=true;
-      savePlayerState();refreshEnergy();
+      attackLabel.textContent=restored>0?`+${restored.toFixed(restored%1?1:0)} ${cityStatus.defense>100?"OVERCHARGE":"DEFENSE"}`:"DEFENSE OVERCHARGE FULL";
+      attackBtn.textContent="FORTIFYING";attackBtn.disabled=true;refreshEnergy();
     }
     function updateFortify(time){
       if(!fortifyFX.active)return;
@@ -1079,12 +1148,14 @@
     const qpoint=(a,b,c,t)=>{const u=1-t;return{x:u*u*a.x+2*u*t*b.x+t*t*c.x,y:u*u*a.y+2*u*t*b.y+t*t*c.y}};
     const attackTarget=()=>({x:attackFX.side>0?W*.84:W*.14,y:attackFX.side>0?H*.30:H*.37});
     function burst(x,y,scale=1){attackFX.bursts.push({x,y,scale,born:performance.now()})}
-    function performAttack(){
-      if(playerState.className==="Defender"){performFortify();return;}
-      if(playerState.className==="Healer"){performHeal();return;}
+    async function performAttack(){
+      if(playerState.className==="Defender"){await performFortify();return;}
+      if(playerState.className==="Healer"){await performHeal();return;}
       refreshEnergy();
-      if(!playerState.className||playerState.energy<=0||attackFX.active||healFX.active||!cityReady)return;
-      playerState.energy--;playerState.lastEnergyAt=Date.now();savePlayerState();refreshEnergy();
+      if(playerState.className!=="Warrior"||playerState.energy<=0||attackFX.active||healFX.active||fortifyFX.active||!cityReady)return;
+      attackBtn.disabled=true;attackBtn.textContent="CONNECTING";attackLabel.textContent="CONTACTING COMMAND";
+      try{await submitGlobalWarAction("attack");}
+      catch(error){alert(error.message||"Unable to attack the fleet.");attackBtn.textContent="ATTACK";attackLabel.textContent="WARRIOR READY";refreshEnergy();return;}
       const now=performance.now(),layout=cityLayout(now),beamLength=Math.min(W,H)*.62;
       attackFX.active=true;attackFX.type="tripleLaser";attackFX.start=now;attackFX.duration=1650;
       attackFX.side=1;attackFX.missiles=[];attackFX.drones=[];attackFX.bursts=[];attackFX.flash=0;attackFX.shake=0;
@@ -1097,8 +1168,7 @@
         {start:right,end:{x:right.x+beamLength*.70,y:right.y-beamLength*.70}}
       ];
       attackLabel.textContent="TRIPLE LASER STRIKE";
-      balanceModel.fleetPercent=Math.max(0,balanceModel.fleetPercent-scaledAttackPercent());
-      saveDailyState();attackBtn.disabled=true;attackBtn.textContent="FIRING";
+      attackBtn.disabled=true;attackBtn.textContent="FIRING";refreshEnergy();
     }
     attackBtn.addEventListener("click",performAttack);
     function drawBurst(e,time){const p=(time-e.born)/560;if(p<0||p>1)return;const r=(12+p*66)*e.scale;ctx.save();ctx.globalCompositeOperation="screen";const g=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,r);g.addColorStop(0,`rgba(255,255,235,${1-p})`);g.addColorStop(.25,`rgba(255,205,80,${.9*(1-p)})`);g.addColorStop(.58,`rgba(255,75,20,${.65*(1-p)})`);g.addColorStop(1,"rgba(255,45,10,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(e.x,e.y,r,0,Math.PI*2);ctx.fill();ctx.restore()}
@@ -1263,21 +1333,16 @@
       ctx.restore();
     }
 
-    function saveDailyState(){}
-    function resolveDailyWarCycle(){
-      balanceModel.day++;balanceModel.fleetPercent=clampStatus(balanceModel.fleetPercent-balanceModel.atlasFleetDamage);
-      const netDefenseDamage=Math.max(0,balanceModel.dailyBombardierDefenseDamage-balanceModel.vegaDefenseRepair),before=Math.max(0,cityStatus.defense);
-      cityStatus.defense=clampOvercharge(before-netDefenseDamage);const overflow=Math.max(0,netDefenseDamage-before);
-      if(cityStatus.defense<=0)cityStatus.integrity=clampOvercharge(cityStatus.integrity-balanceModel.dailyBombardierIntegrityDamage-overflow+balanceModel.irisIntegrityRepair);
-      else cityStatus.integrity=clampOvercharge(cityStatus.integrity+balanceModel.irisIntegrityRepair);
-      balanceModel.nextDayAt+=balanceModel.dayMs;saveDailyState();
-    }
-    function loadDailyState(){
-      balanceModel.day=1;
-      balanceModel.fleetPercent=100;
-      balanceModel.nextDayAt=Date.now()+balanceModel.dayMs;
-      cityStatus.defense=100;
-      cityStatus.integrity=100;
+    function saveDailyState(){/* Global state is saved by the server. */}
+    async function loadDailyState(){
+      try{
+        const response=await fetch("/api/war/state",{cache:"no-store"});
+        const type=response.headers.get("content-type")||"";
+        if(!type.includes("application/json"))throw new Error(`War server returned ${response.status} instead of JSON.`);
+        const data=await response.json();
+        if(!response.ok)throw new Error(data.error||"Unable to load global war state.");
+        applyGlobalWarState(data.war);
+      }catch(error){console.error("Global war state failed:",error);attackLabel.textContent="WAR SERVER UNAVAILABLE";}
     }
     function getCycleProgress(){
       return Math.max(0,Math.min(1,1-((balanceModel.nextDayAt-Date.now())/balanceModel.dayMs)));
@@ -1299,11 +1364,9 @@
       };
     }
     function getDisplayedStatus(){
-      const progress=getCycleProgress();
-      const projected=getProjectedCycleEnd();
       return {
-        defense:Math.max(0,Math.min(120,cityStatus.defense+(projected.defense-cityStatus.defense)*progress)),
-        integrity:Math.max(0,Math.min(120,cityStatus.integrity+(projected.integrity-cityStatus.integrity)*progress))
+        defense:Math.max(0,Math.min(120,Number(cityStatus.defense)||0)),
+        integrity:Math.max(0,Math.min(120,Number(cityStatus.integrity)||0))
       };
     }
     function addDisplayedDefense(amount){
@@ -1320,7 +1383,6 @@
     }
 
     function update(dt) {
-      if(Date.now()>=balanceModel.nextDayAt)resolveDailyWarCycle();
       refreshEnergy();
       groundOffset += 220 * dt;
       farOffset += 30 * dt;
@@ -1373,8 +1435,9 @@
       requestAnimationFrame(loop);
     }
 
-    loadDailyState();
     loadPlayerState();
+    loadDailyState();
+    setInterval(()=>{loadDailyState();},15000);
     requestAnimationFrame(loop);
   </script>
 </body>
