@@ -138,14 +138,14 @@ export default async (req: Request): Promise<Response> => {
     } else if (action === "fortify") {
       await client.query(
         `UPDATE war_state
-         SET defense = LEAST(120, defense + 2),
+         SET defense = LEAST(120, defense + 0.25),
              updated_at = CURRENT_TIMESTAMP
          WHERE id = 1`,
       );
     } else if (action === "restore") {
       await client.query(
         `UPDATE war_state
-         SET integrity = LEAST(120, integrity + 2),
+         SET integrity = LEAST(120, integrity + 0.25),
              updated_at = CURRENT_TIMESTAMP
          WHERE id = 1`,
       );
